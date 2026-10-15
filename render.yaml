@@ -1,0 +1,49 @@
+services:
+  - type: web
+    name: emapa-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python server.py
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.9
+      - key: EMAPA_HOST
+        value: 0.0.0.0
+      - key: EMAPA_COOKIE_SECURE
+        value: "1"
+      - key: EMAPA_CROSS_SITE_COOKIES
+        value: "1"
+      - key: EMAPA_CORS_ORIGINS
+        sync: false
+      - key: EMAPA_ADMIN_USERNAME
+        sync: false
+      - key: EMAPA_ADMIN_PASSWORD
+        sync: false
+      - key: EMAPA_WAREHOUSE_USERNAME
+        sync: false
+      - key: EMAPA_WAREHOUSE_PASSWORD
+        sync: false
+      - key: EMAPA_WAREHOUSE_2_USERNAME
+        sync: false
+      - key: EMAPA_WAREHOUSE_2_PASSWORD
+        sync: false
+      - key: EMAPA_WAREHOUSE_3_USERNAME
+        sync: false
+      - key: EMAPA_WAREHOUSE_3_PASSWORD
+        sync: false
+      - key: EMAPA_WAREHOUSE_4_USERNAME
+        sync: false
+      - key: EMAPA_WAREHOUSE_4_PASSWORD
+        sync: false
+      - key: EMAPA_WAREHOUSE_5_USERNAME
+        sync: false
+      - key: EMAPA_WAREHOUSE_5_PASSWORD
+        sync: false
+      - key: EMAPA_AUDITOR_USERNAME
+        sync: false
+      - key: EMAPA_AUDITOR_PASSWORD
+        sync: false
+      - key: EMAPA_DB_PATH
+        value: /tmp/emapa.sqlite3

@@ -1,0 +1,6 @@
+[build]
+  command = "python3 build.py"
+  publish = "dist"
+
+[build.environment]
+  PYTHON_VERSION = "3.13"

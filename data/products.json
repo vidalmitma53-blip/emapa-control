@@ -1,0 +1,14 @@
+[
+  {"id":"arroz-grano","name":"Arroz en grano","unit":"kg","category":"Granos"},
+  {"id":"arroz-seleccionado","name":"Arroz seleccionado","unit":"kg","category":"Granos"},
+  {"id":"harina-trigo-especial","name":"Harina de trigo especial","unit":"kg","category":"Harinas"},
+  {"id":"harina-trigo-000","name":"Harina de trigo 000","unit":"kg","category":"Harinas"},
+  {"id":"maiz-amarillo-duro","name":"Maíz amarillo duro","unit":"kg","category":"Granos"},
+  {"id":"aceite-comestible","name":"Aceite comestible","unit":"L","category":"Aceites y grasas"},
+  {"id":"azucar","name":"Azúcar","unit":"kg","category":"Alimentos básicos"},
+  {"id":"tambaqui","name":"Tambaquí fresco","unit":"kg","category":"Pescado fresco"},
+  {"id":"pacu","name":"Pacú fresco","unit":"kg","category":"Pescado fresco"},
+  {"id":"tilapia","name":"Tilapia fresca","unit":"kg","category":"Pescado fresco"},
+  {"id":"manteca","name":"Manteca","unit":"kg","category":"Aceites y grasas"},
+  {"id":"soya","name":"Soya","unit":"kg","category":"Granos"}
+]

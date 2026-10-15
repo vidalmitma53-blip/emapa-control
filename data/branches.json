@@ -1,0 +1,22 @@
+[
+  {"id":"cbba-01","name":"Oficina Regional y Superemapa Central","city":"Cochabamba · Zona Central","address":"Calle Hamiraya N.º 360, entre Ecuador y Mayor Rocha","lat":-17.393500,"lng":-66.156800},
+  {"id":"cbba-02","name":"Sucursal Zona Sur (Huanchaca)","city":"Cochabamba · Zona Sur","address":"Av. Huanchaca esquina Pedro Zeballos","lat":-17.421200,"lng":-66.148500},
+  {"id":"cbba-03","name":"Sucursal Av. Panamericana","city":"Cochabamba · Zona Sur / sudeste","address":"Final Av. Panamericana","lat":-17.435000,"lng":-66.138000},
+  {"id":"cbba-04","name":"Sucursal Av. Blanco Galindo (KM 8)","city":"Colcapirhua / Cercado","address":"Kilómetro 8, Avenida Blanco Galindo","lat":-17.385200,"lng":-66.220100},
+  {"id":"cbba-05","name":"Estación del Tren Metropolitano - San Antonio","city":"Cochabamba","address":"Estación San Antonio, Av. 6 de Agosto","lat":-17.405300,"lng":-66.152100},
+  {"id":"cbba-06","name":"Estación del Tren - Zona norte / Muyurina","city":"Cochabamba · Muyurina","address":"Zona Muyurina / Estación de transferencia","lat":-17.378900,"lng":-66.142300},
+  {"id":"cbba-07","name":"Sucursal Quillacollo (Estación / Centro)","city":"Quillacollo","address":"Av. 6 de Agosto s/n","lat":-17.401100,"lng":-66.279500},
+  {"id":"cbba-08","name":"Agencia Distribuidora Sipe Sipe","city":"Sipe Sipe","address":"Plaza Principal / Zona Central de Sipe Sipe","lat":-17.428000,"lng":-66.365000},
+  {"id":"cbba-09","name":"Agencia Distribuidora Vinto","city":"Vinto","address":"Carretera Principal Cochabamba - Oruro, Vinto Centro","lat":-17.395000,"lng":-66.315000},
+  {"id":"cbba-10","name":"Agencia Distribuidora Sacaba (Centro)","city":"Sacaba","address":"Ingreso principal a Sacaba, Av. Cochabamba","lat":-17.404200,"lng":-66.039800},
+  {"id":"cbba-11","name":"Agencia Distribuidora Sacaba (Zona Este / El Abra)","city":"Sacaba · El Abra","address":"Zona El Abra, tramo principal de comercialización","lat":-17.391000,"lng":-66.015000},
+  {"id":"cbba-12","name":"Agencia Punata (Valle Alto)","city":"Punata · Valle Alto","address":"Zona del Mercado Central de Punata","lat":-17.545000,"lng":-65.835000},
+  {"id":"cbba-13","name":"Agencia Cliza (Valle Alto)","city":"Cliza · Valle Alto","address":"Cerca de la Plaza Principal de Cliza","lat":-17.581000,"lng":-65.933000},
+  {"id":"cbba-14","name":"Agencia Tarata (Valle Alto)","city":"Tarata · Valle Alto","address":"Zona céntrica e histórica de Tarata","lat":-17.616000,"lng":-66.025000},
+  {"id":"cbba-15","name":"Agencia Arani","city":"Arani","address":"Zona del Mercado Municipal de Arani","lat":-17.575000,"lng":-65.768000},
+  {"id":"cbba-16","name":"Sucursal / Centro de Acopio - Monte Punku","city":"Monte Punku / Pojo","address":"Carretera Antigua Cochabamba - Santa Cruz, KM 120","lat":-17.750000,"lng":-65.180000},
+  {"id":"cbba-17","name":"Agencia Trópico - Villa Tunari","city":"Villa Tunari · Trópico","address":"Zona del Mercado Campesino, Av. Haupt","lat":-16.979000,"lng":-65.415000},
+  {"id":"cbba-18","name":"Agencia Trópico - Shinahota","city":"Shinahota · Trópico","address":"Zona Central / Carretera troncal del Trópico","lat":-17.005000,"lng":-65.250000},
+  {"id":"cbba-19","name":"Agencia Trópico - Chimoré (Piscícola / Comercial)","city":"Chimoré · Trópico","address":"Zona Senda 3 / Puerto Aurora","lat":-16.953000,"lng":-65.142000},
+  {"id":"cbba-20","name":"Agencia Trópico - Ivirgarzama (Puerto Villarroel)","city":"Ivirgarzama / Puerto Villarroel","address":"Zona Comercial Central de Ivirgarzama","lat":-17.060000,"lng":-64.852000}
+]

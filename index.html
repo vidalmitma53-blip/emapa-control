@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta name="theme-color" content="#176b45">
+	<meta name="description" content="Mapa demostrativo de disponibilidad de productos por sucursal EMAPA y panel de gestión de inventarios.">
+	<title>Abastecimiento transparente | EMAPA</title>
+	<link rel="preconnect" href="https://unpkg.com">
+	<link rel="preconnect" href="https://tile.openstreetmap.org">
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+	<link rel="stylesheet" href="style.css">
+	<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" defer></script>
+	<script src="emapa-config.js" defer></script>
+	<script src="app.js" defer></script>
+	<script src="api-client.js" defer></script>
+</head>
+<body>
+	<div class="demo-ribbon"><span class="pulse-dot"></span> PROTOTIPO · información ilustrativa, no corresponde a existencias oficiales</div>
+	<header class="site-header">
+		<a class="brand" href="#inicio" aria-label="EMAPA, ir al inicio">
+			<span class="brand-mark" aria-hidden="true">E</span>
+			<span class="brand-name">EMAPA <small>Empresa de Apoyo a la Producción de Alimentos</small></span>
+		</a>
+		<button class="menu-toggle" id="menu-toggle" aria-label="Abrir menú" aria-expanded="false">☰</button>
+		<nav class="main-nav" id="main-nav" aria-label="Navegación principal">
+			<a class="nav-link active" href="#mapa">Disponibilidad</a>
+			<a class="nav-link" href="#productos">Productos</a>
+			<a class="nav-link" href="#como-funciona">Transparencia</a>
+				<button class="nav-link internal-link" id="internal-link" type="button"><span class="lock-icon" aria-hidden="true">▣</span> Gestión interna <span class="demo-tag">DEMO</span></button>
+		</nav>
+	</header>
+
+	<main id="inicio">
+		<section class="hero" aria-labelledby="hero-title">
+			<div class="hero-content">
+				<div class="eyebrow"><span class="eyebrow-line"></span> INFORMACIÓN PARA TODAS Y TODOS</div>
+				<h1 id="hero-title">El abastecimiento,<br><em>a la vista de todos.</em></h1>
+				<p>Consulta las existencias registradas en 20 puntos de atención de Cochabamba y municipios cercanos.</p>
+				<a class="hero-cta" href="#mapa">Explorar el mapa <span aria-hidden="true">↓</span></a>
+			</div>
+			<div class="hero-art" aria-hidden="true">
+				<div class="hero-orbit orbit-one"></div><div class="hero-orbit orbit-two"></div>
+				<img class="bolivia-emblem-official" src="https://upload.wikimedia.org/wikipedia/commons/0/06/Coat_of_arms_of_Bolivia.svg" alt="Escudo oficial del Estado Plurinacional de Bolivia" title="Escudo de Bolivia · Wikimedia Commons" referrerpolicy="no-referrer">
+				<svg class="bolivia-emblem" viewBox="0 0 260 300" role="img" aria-label="Ilustración del escudo de Bolivia">
+					<defs>
+						<linearGradient id="crestGold" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#f6d77b"/><stop offset="1" stop-color="#c99739"/></linearGradient>
+						<linearGradient id="crestGreen" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#69a66f"/><stop offset="1" stop-color="#287246"/></linearGradient>
+						<clipPath id="shieldClip"><path d="M57 91 Q130 70 203 91 L196 174 Q186 226 130 252 Q74 226 64 174 Z"/></clipPath>
+					</defs>
+					<g class="emblem-laurel" fill="none" stroke="#83b779" stroke-width="3" stroke-linecap="round">
+						<path d="M58 240 Q17 204 27 145 Q32 111 52 91 M202 240 Q243 204 233 145 Q228 111 208 91"/>
+						<path d="M42 205l-19-2m20-11-17-8m21-5-15-13m20-1-12-17m19 4-8-19m160 72 19-2m-20-11 17-8m-21-5 15-13m-20-1 12-17m-19 4 8-19"/>
+					</g>
+					<g class="emblem-condor" fill="#e1e8dc" stroke="#d6e2d6" stroke-linejoin="round">
+						<path d="M130 22c-7-12-20-15-31-12l15 11-27-3 19 11-32 2 27 8c7 9 17 13 29 13s22-4 29-13l27-8-32-2 19-11-27 3 15-11c-11-3-24 0-31 12z"/>
+						<path d="M124 48h12l-6 11z" fill="url(#crestGold)" stroke="none"/>
+						<path d="M125 44v16m10-16v16" stroke="#89a489" stroke-width="2"/>
+					</g>
+					<path d="M57 91 Q130 70 203 91 L196 174 Q186 226 130 252 Q74 226 64 174 Z" fill="url(#crestGold)" stroke="#f6e5a6" stroke-width="4"/>
+					<g clip-path="url(#shieldClip)">
+						<rect x="60" y="90" width="140" height="166" fill="#f1e7ca"/>
+						<circle cx="164" cy="123" r="19" fill="#e7b747"/>
+						<g stroke="#e7b747" stroke-width="2"><path d="M164 95v-8m0 72v-8m-28-28h-8m72 0h-8m-48-20-6-6m52 52-6-6m0-40 6-6m-52 52 6-6"/></g>
+						<path d="M67 161l25-35 17 22 18-34 22 42 18-22 30 31v40H67z" fill="#6c8ca0"/>
+						<path d="M91 143l-7 10 8-4 6 5-2-9zm36-20-8 15 9-5 8 6-3-12zm39 19-7 10 9-4 6 5-2-9z" fill="#f8f1df"/>
+						<path d="M65 176q32-12 65 0t67 0v43H65z" fill="url(#crestGreen)"/>
+						<path d="M65 197q33-10 65 0t67 0v25q-33 31-67 38-36-10-65-38z" fill="#c9a24e"/>
+						<path d="M112 202q11-12 21-3l7 7 12 2 6 7-12 3-7-5-9 2-9 11-7-2 5-13-9-3z" fill="#f7f1df" stroke="#8f865f" stroke-width="1.5"/>
+						<path d="M87 222h86m-78 7h71" stroke="#eee1bb" stroke-width="2" opacity=".7"/>
+					</g>
+					<g class="emblem-stars" fill="#f5d77c">
+						<path d="m73 76 2 5 5 .3-4 3 1.5 5-4.5-2.7-4.5 2.7 1.5-5-4-3 5-.3z"/><path d="m95 68 2 5 5 .3-4 3 1.5 5-4.5-2.7-4.5 2.7 1.5-5-4-3 5-.3z"/><path d="m117 64 2 5 5 .3-4 3 1.5 5-4.5-2.7-4.5 2.7 1.5-5-4-3 5-.3z"/><path d="m139 64 2 5 5 .3-4 3 1.5 5-4.5-2.7-4.5 2.7 1.5-5-4-3 5-.3z"/><path d="m161 68 2 5 5 .3-4 3 1.5 5-4.5-2.7-4.5 2.7 1.5-5-4-3 5-.3z"/><path d="m183 76 2 5 5 .3-4 3 1.5 5-4.5-2.7-4.5 2.7 1.5-5-4-3 5-.3z"/>
+					</g>
+					<g class="emblem-flags"><path d="M42 119h13v7H42z" fill="#d8493e"/><path d="M42 126h13v7H42z" fill="#e7c44f"/><path d="M42 133h13v7H42z" fill="#438a55"/><path d="M205 119h13v7h-13z" fill="#d8493e"/><path d="M205 126h13v7h-13z" fill="#e7c44f"/><path d="M205 133h13v7h-13z" fill="#438a55"/></g>
+					<path d="M83 262h94" stroke="#e4c467" stroke-width="2" stroke-linecap="round"/>
+					<text x="130" y="279" fill="#f3e2a7" font-size="9" font-family="Segoe UI,Arial,sans-serif" font-weight="700" letter-spacing="2" text-anchor="middle">BOLIVIA</text>
+				</svg>
+				<div class="hero-pin pin-a">●</div><div class="hero-pin pin-b">●</div><div class="hero-pin pin-c">●</div>
+				<div class="hero-note"><span class="note-dot"></span> 20 puntos · Cochabamba <b>+</b></div>
+			</div>
+			<div class="hero-bottom"><span>ABASTECIMIENTO CON TRANSPARENCIA</span><span>01 — 02</span></div>
+		</section>
+
+		<section class="products-section section-wrap" id="productos" aria-labelledby="products-title">
+			<div class="section-heading products-heading">
+				<div><div class="eyebrow dark"><span class="eyebrow-line"></span> PRODUCCIÓN Y ABASTECIMIENTO</div><h2 id="products-title">Productos que llegan a tu mesa</h2><p>Conoce parte de la oferta de alimentos y productos comercializados por EMAPA.</p></div>
+				<a class="catalog-link" href="#mapa">Consultar en el mapa <span aria-hidden="true">↗</span></a>
+			</div>
+			<div class="products-grid">
+				<article class="product-card"><span class="product-illustration grain" aria-hidden="true">🌾</span><span class="product-category">GRANOS</span><h3>Arroz en grano</h3><p>Grano seleccionado para tus comidas de todos los días.</p></article>
+				<article class="product-card"><span class="product-illustration rice" aria-hidden="true">🍚</span><span class="product-category">ARROZ</span><h3>Arroz seleccionado</h3><p>Una opción práctica para compartir en familia.</p></article>
+				<article class="product-card"><span class="product-illustration flour" aria-hidden="true">🌾</span><span class="product-category">HARINAS</span><h3>Harina de trigo especial</h3><p>Para preparaciones de panadería y repostería.</p></article>
+				<article class="product-card"><span class="product-illustration flour" aria-hidden="true">🥖</span><span class="product-category">HARINAS</span><h3>Harina de trigo 000</h3><p>Ideal para distintas recetas y elaboraciones.</p></article>
+				<article class="product-card"><span class="product-illustration corn" aria-hidden="true">🌽</span><span class="product-category">GRANOS</span><h3>Maíz amarillo duro</h3><p>Grano de origen nacional para diversos usos.</p></article>
+				<article class="product-card"><span class="product-illustration oil" aria-hidden="true">🫗</span><span class="product-category">ACEITES</span><h3>Aceite comestible</h3><p>Producto esencial para la cocina diaria.</p></article>
+				<article class="product-card"><span class="product-illustration sugar" aria-hidden="true">✧</span><span class="product-category">BÁSICOS</span><h3>Azúcar</h3><p>Endulzante de uso cotidiano en el hogar.</p></article>
+				<article class="product-card"><span class="product-illustration fish" aria-hidden="true">🐟</span><span class="product-category">PESCADO FRESCO</span><h3>Tambaquí</h3><p>Pescado fresco proveniente del trópico.</p></article>
+				<article class="product-card"><span class="product-illustration fish" aria-hidden="true">🐟</span><span class="product-category">PESCADO FRESCO</span><h3>Pacú</h3><p>Una alternativa de pescado de producción tropical.</p></article>
+				<article class="product-card"><span class="product-illustration fish" aria-hidden="true">🐟</span><span class="product-category">PESCADO FRESCO</span><h3>Tilapia</h3><p>Pescado fresco para una alimentación variada.</p></article>
+				<article class="product-card"><span class="product-illustration butter" aria-hidden="true">▰</span><span class="product-category">ACEITES Y GRASAS</span><h3>Manteca</h3><p>Un ingrediente para preparaciones tradicionales.</p></article>
+				<article class="product-card"><span class="product-illustration soy" aria-hidden="true">🫘</span><span class="product-category">GRANOS</span><h3>Soya</h3><p>Leguminosa de gran valor para la producción nacional.</p></article>
+			</div>
+			<p class="products-note"><span aria-hidden="true">i</span> La disponibilidad varía por punto de atención. Consulta el mapa para revisar los registros de inventario.</p>
+		</section>
+
+		<section class="map-section section-wrap" id="mapa" aria-labelledby="map-title">
+			<div class="section-heading">
+				<div><div class="eyebrow dark"><span class="eyebrow-line"></span> COCHABAMBA · PUNTOS DE ATENCIÓN</div><h2 id="map-title">Encuentra tu punto</h2></div>
+				<div class="live-badge"><span class="pulse-dot"></span> VISTA DEMOSTRATIVA <span class="badge-divider"></span><span id="updated-at">DATOS ILUSTRATIVOS</span></div>
+			</div>
+			<div class="map-toolbar">
+				<label class="search-box" for="branch-search"><span aria-hidden="true">⌕</span><input id="branch-search" type="search" placeholder="Buscar ciudad o sucursal" autocomplete="off"><kbd>⌘ K</kbd></label>
+				<label class="filter-box" for="product-filter"><span>PRODUCTO</span><select id="product-filter"><option value="all">Todos los productos</option></select></label>
+				<div class="result-count"><strong id="branch-count">20</strong> puntos</div>
+			</div>
+			<div class="map-layout">
+				<div class="map-frame">
+					  <div id="map" role="application" aria-label="Mapa interactivo con 20 ubicaciones EMAPA de Cochabamba y municipios cercanos"></div>
+					<div class="map-legend"><span><i class="legend-dot available"></i> Disponibilidad alta</span><span><i class="legend-dot limited"></i> Disponibilidad limitada</span><span><i class="legend-dot no-record"></i> Sin registro</span></div>
+					  <div class="map-attribution-note">Mapa base © OpenStreetMap · 20 puntos según listado proporcionado</div>
+				</div>
+				<aside class="branch-panel" aria-label="Puntos de atención y disponibilidad en Cochabamba">
+					<div class="panel-top"><div><span class="panel-overline">DISPONIBILIDAD REFERENCIAL</span><h3>Puntos <span id="panel-count">20</span></h3></div><button id="locate-button" class="locate-button" type="button" title="Centrar el mapa en Cochabamba" aria-label="Centrar el mapa en Cochabamba">◎</button></div>
+					<div class="branch-list" id="branch-list" aria-live="polite"></div>
+					  <div class="panel-foot"><span class="info-icon">i</span><p>Direcciones y coordenadas según el listado proporcionado. Las existencias son de ejemplo; confirma disponibilidad antes de tu visita.</p></div>
+				</aside>
+			</div>
+			<div class="metrics-row" aria-label="Resumen demostrativo">
+				<div class="metric"><span class="metric-icon green-icon">⌖</span><div><strong>20</strong><span>PUNTOS EN COCHABAMBA</span></div></div>
+				<div class="metric"><span class="metric-icon gold-icon">▤</span><div><strong>12</strong><span>PRODUCTOS EN CATÁLOGO</span></div></div>
+				<div class="metric"><span class="metric-icon mint-icon">↻</span><div><strong id="data-mode">Modo demo</strong><span id="data-mode-caption">SIN CONEXIÓN AL BACKEND</span></div></div>
+				<div class="metrics-disclaimer">Sin registro de inventario se muestra “Sin registro”; no se interpreta como existencia cero ni como producto agotado.</div>
+			</div>
+		</section>
+
+		<section class="transparency-section" id="como-funciona">
+			<div class="section-wrap transparency-inner">
+				<div class="transparency-copy"><div class="eyebrow"><span class="eyebrow-line"></span> DATOS ABIERTOS, GESTIÓN RESPONSABLE</div><h2>Transparencia que<br>se puede consultar.</h2><p>La información pública debe ayudar a la ciudadanía a tomar decisiones, sin exponer datos personales ni comprometer la seguridad de las operaciones.</p></div>
+				<div class="principle-grid">
+					<article class="principle"><span>01</span><h3>Consulta pública</h3><p>Disponibilidad y cantidad referencial por sucursal, en una vista clara y accesible.</p></article>
+					<article class="principle"><span>02</span><h3>Trazabilidad</h3><p>Registro interno de movimientos vinculado a productos, lotes, usuarios y fechas.</p></article>
+					<article class="principle"><span>03</span><h3>Acceso por roles</h3><p>Permisos definidos por función y aplicados en el servidor, con auditoría de acciones.</p></article>
+				</div>
+			</div>
+		</section>
+
+		<section class="internal-section section-wrap" id="gestion" hidden aria-labelledby="internal-title">
+			<div class="section-heading internal-heading"><div><div class="eyebrow dark"><span class="eyebrow-line"></span> ESPACIO INSTITUCIONAL · CONTROL DE ACCESO</div><h2 id="internal-title">Control de inventarios</h2></div><div class="internal-actions"><span id="signed-in-user" hidden></span><button class="text-button" id="logout-button" type="button" hidden>Cerrar sesión</button><button class="back-public" id="back-public" type="button">← Volver a disponibilidad</button></div></div>
+			<div class="security-notice"><span class="notice-icon">!</span><div><strong>Entorno demostrativo, no autenticado.</strong><p>La selección de rol y los cambios se ejecutan solo en esta sesión del navegador. No se guardan ni constituyen un sistema de control seguro. No ingreses información real.</p></div></div>
+			<div class="internal-grid">
+				<div class="inventory-card">
+					<div class="card-heading"><div><span class="panel-overline">OPERACIÓN DE PRUEBA</span><h3>Registrar movimiento</h3></div><span class="demo-tag">SOLO DEMO</span></div>
+					<div class="role-row"><label for="role-select">Rol de demostración</label><select id="role-select"><option value="warehouse">Almacenero · registrar movimientos</option><option value="supervisor">Supervisor · registrar y revisar</option><option value="auditor">Auditor · solo lectura</option></select><span id="role-hint">Permiso de prueba: registro de entradas y salidas.</span></div>
+					<form id="movement-form">
+						<div class="form-grid"><label>Sucursal<select id="movement-branch" required></select></label><label>Producto<select id="movement-product" required></select></label><label>Tipo de movimiento<select id="movement-type" required><option value="ingreso">Ingreso</option><option value="salida">Salida</option></select></label><label>Cantidad (según unidad)<input id="movement-quantity" type="number" min="0.01" step="0.01" placeholder="Ej. 120" required></label><label class="full-field">Código del lote<input id="movement-lot" type="text" maxlength="64" placeholder="Ej. L-2026-001" required></label></div>
+						<div class="form-actions"><button class="primary-button" type="submit" id="register-movement">Registrar movimiento <span aria-hidden="true">→</span></button><span class="form-footnote">Registro temporal local · sin persistencia</span></div>
+					</form>
+				</div>
+				<div class="ledger-card"><div class="card-heading"><div><span class="panel-overline">BITÁCORA DE ESTA SESIÓN</span><h3>Kardex de movimientos</h3></div><button id="clear-log" class="text-button" type="button">Limpiar demo</button></div><div class="table-wrap"><table><thead><tr><th>Fecha y hora</th><th>Sucursal / producto</th><th>Movimiento</th><th>Lote</th><th>Usuario demo</th></tr></thead><tbody id="ledger-body"></tbody></table></div><p class="empty-ledger" id="empty-ledger">Aún no hay movimientos en esta sesión.</p><div class="ledger-footer"><span><i class="status-dot"></i> Datos en memoria del navegador</span><span>El kardex oficial requiere almacenamiento seguro</span></div></div>
+			</div>
+			<div class="compliance-note"><strong>Consideraciones para una implementación productiva</strong><span>Autenticación institucional · autorización en backend · base de datos transaccional · bitácora inalterable · respaldo y retención · políticas de publicación y revisión jurídica conforme a las Leyes N.º 1178 y N.º 2341.</span></div>
+		</section>
+	</main>
+	<dialog class="login-dialog" id="login-dialog" aria-labelledby="login-title">
+		<form id="login-form" class="login-card" method="dialog">
+			<button class="login-close" id="login-close" type="button" aria-label="Cerrar">×</button>
+			<div class="eyebrow dark"><span class="eyebrow-line"></span> ACCESO INSTITUCIONAL</div>
+			<h2 id="login-title">Inicio de sesión</h2>
+			<p>Ingresa con tus credenciales de trabajador autorizado.</p>
+			<label>Usuario<input name="username" autocomplete="username" required></label>
+			<label>Contraseña<input name="password" type="password" autocomplete="current-password" required></label>
+			<p class="login-error" id="login-error" role="alert" hidden></p>
+			<button class="primary-button" type="submit">Iniciar sesión <span aria-hidden="true">→</span></button>
+			<small>La autenticación debe realizarse contra el servidor institucional. No uses credenciales reales en el modo de demostración.</small>
+		</form>
+	</dialog>
+	<footer class="site-footer"><div class="footer-brand"><span class="brand-mark small-mark">E</span><span>EMAPA <small>Apoyo a la producción nacional</small></span></div><p>Prototipo de transparencia y control de inventarios.</p><a class="emblem-source" href="https://commons.wikimedia.org/wiki/File:Coat_of_arms_of_Bolivia.svg" target="_blank" rel="noopener noreferrer">Escudo: Wikimedia Commons</a><a href="#inicio">Volver arriba ↑</a></footer>
+</body>
+</html>

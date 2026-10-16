@@ -47,3 +47,11 @@ services:
         sync: false
       - key: EMAPA_DB_PATH
         value: /tmp/emapa.sqlite3
+      - key: EMAPA_SALE_LIMIT_PER_PRODUCT
+        value: "10"
+      - key: EMAPA_SALE_MAX_PRODUCTS_PER_DAY
+        value: "5"
+      - key: EMAPA_SALE_LIMIT_PER_PRODUCT
+        value: "10"
+      - key: EMAPA_SALE_MAX_PRODUCTS_PER_DAY
+        value: "5"

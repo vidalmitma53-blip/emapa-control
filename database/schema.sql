@@ -62,6 +62,8 @@ CREATE TABLE IF NOT EXISTS inventory_movements (
   quantity REAL NOT NULL CHECK (quantity > 0),
   previous_quantity REAL NOT NULL CHECK (previous_quantity >= 0),
   resulting_quantity REAL NOT NULL CHECK (resulting_quantity >= 0),
+  buyer_name TEXT,
+  buyer_document TEXT,
   occurred_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   request_id TEXT NOT NULL UNIQUE
 );

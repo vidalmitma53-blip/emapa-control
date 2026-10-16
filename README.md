@@ -18,6 +18,18 @@ El backend lee el puerto dinámico `PORT`, escucha en `0.0.0.0`, publica CORS so
 
 El cliente consulta catálogo y sucursales al backend, inicia sesión, registra movimientos y abre el flujo de eventos en vivo. La sincronización usa credenciales incluidas y el backend valida origen y rol. Netlify usa HTTPS automáticamente.
 
+## Salidas y control de compras
+
+Una salida requiere nombre completo y CI del comprador. El servidor aplica, inicialmente, máximo 10 unidades del mismo producto por CI/día y máximo 5 tipos de producto distintos por CI/día, sumando todas las sucursales. Los dos topes se comprueban dentro de la transacción, además del stock del lote, y se pueden ajustar con `EMAPA_SALE_LIMIT_PER_PRODUCT` y `EMAPA_SALE_MAX_PRODUCTS_PER_DAY`. El movimiento registra comprador, operador, lote y saldo anterior/resultante. Los ingresos no piden datos del comprador.
+
+Nombre y CI están solo en el kardex protegido; el API público del mapa no los devuelve. El CI aparece enmascarado para almaceneros y completo solo para supervisores/auditores. Antes de usar datos reales, EMAPA debe aprobar base legal, aviso al comprador, acceso según funciones y un plazo de retención/eliminación. Los límites reducen compras por CI, pero no eliminan por sí solos la reventa ni sustituyen controles institucionales.
+
+## Salidas y prevención de reventa
+
+Toda salida exige nombre del comprador y CI; ambos se guardan en la bitácora interna de kardex y nunca se incluyen en el endpoint público del mapa. Como política inicial configurable, cada CI puede retirar hasta 10 unidades del mismo producto al día y hasta 5 tipos de producto distintos al día, sumando todas las sucursales. El servidor vuelve a comprobar los topes dentro de la transacción para impedir que se evadan modificando el navegador. `EMAPA_SALE_LIMIT_PER_PRODUCT` y `EMAPA_SALE_MAX_PRODUCTS_PER_DAY` ajustan esos topes a la normativa y política comercial que apruebe EMAPA.
+
+El CI es dato personal: el kardex muestra el documento completo solo a supervisores y auditores; para almaceneros lo enmascara. Antes de operación institucional, la entidad debe validar base legal, aviso al comprador, perfiles autorizados, periodo de retención y eliminación segura. Los límites son controles operativos de apoyo y no sustituyen verificación de identidad ni revisión normativa.
+
 ## SQLite en el plan gratuito
 
 El `render.yaml` guarda SQLite en `/tmp/emapa.sqlite3`, que es **efímero**. Se puede reiniciar o borrar con redeploy, reinicio o ciclo del servicio; las cuentas sembradas desde variables vuelven a crearse, pero los movimientos y saldos se pierden. En Render gratuito el servicio también puede dormir, por lo que la primera petición demora. Es aceptable solo para evaluación y datos de prueba.

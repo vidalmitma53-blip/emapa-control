@@ -6,6 +6,7 @@ import hmac
 import json
 import os
 import queue
+import re
 import secrets
 import sqlite3
 import time
@@ -24,6 +25,8 @@ SESSION_COOKIE = "emapa_session"
 SESSION_SECONDS = 8 * 60 * 60
 PASSWORD_ITERATIONS = 310_000
 MAX_BODY_BYTES = 64 * 1024
+SALE_LIMIT_PER_PRODUCT = float(os.environ.get("EMAPA_SALE_LIMIT_PER_PRODUCT", "10"))
+SALE_MAX_PRODUCTS_PER_DAY = int(os.environ.get("EMAPA_SALE_MAX_PRODUCTS_PER_DAY", "5"))
 LIVE_CLIENTS: set[queue.Queue[dict[str, str]]] = set()
 LIVE_LOCK = Lock()
 LOGIN_ATTEMPTS: dict[str, list[float]] = {}
@@ -74,6 +77,15 @@ def initialize_db() -> None:
     with db_connection() as db:
         db.execute("PRAGMA journal_mode = WAL")
         db.executescript((ROOT / "database" / "schema.sql").read_text(encoding="utf-8"))
+        movement_columns = {row["name"] for row in db.execute("PRAGMA table_info(inventory_movements)")}
+        if "buyer_name" not in movement_columns:
+            db.execute("ALTER TABLE inventory_movements ADD COLUMN buyer_name TEXT")
+        if "buyer_document" not in movement_columns:
+            db.execute("ALTER TABLE inventory_movements ADD COLUMN buyer_document TEXT")
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_movements_buyer_product_day "
+            "ON inventory_movements(buyer_document, movement_type, occurred_at)"
+        )
         db.executemany(
             "INSERT OR IGNORE INTO roles (id, name) VALUES (?, ?)",
             [("warehouse", "Almacenero"), ("supervisor", "Supervisor"), ("auditor", "Auditor")],
@@ -222,13 +234,20 @@ class Handler(BaseHTTPRequestHandler):
             with db_connection() as db:
                 rows = db.execute(
                     """SELECT m.id,m.movement_type,m.quantity,m.previous_quantity,m.resulting_quantity,
-                              m.occurred_at,l.lot_code,p.name AS product,b.name AS branch,u.username
+                              m.occurred_at,m.buyer_name,m.buyer_document,l.lot_code,p.name AS product,
+                              b.name AS branch,u.username
                        FROM inventory_movements m JOIN inventory i ON i.id=m.inventory_id
                        JOIN lots l ON l.id=i.lot_id JOIN products p ON p.id=i.product_id
                        JOIN branches b ON b.id=i.branch_id JOIN users u ON u.id=m.user_id
                        ORDER BY m.id DESC LIMIT 200"""
                 ).fetchall()
-            self.json(HTTPStatus.OK, {"movements": [dict(row) for row in rows]})
+            movements = [dict(row) for row in rows]
+            if user["role"] == "warehouse":
+                for movement in movements:
+                    document = movement["buyer_document"]
+                    if document:
+                        movement["buyer_document"] = f"{document[:2]}****{document[-2:]}" if len(document) > 4 else "****"
+            self.json(HTTPStatus.OK, {"movements": movements})
             return
         if path in STATIC_FILES:
             self.serve_static(path)
@@ -410,6 +429,8 @@ class Handler(BaseHTTPRequestHandler):
         product_id = str(payload.get("productId", ""))
         lot_code = str(payload.get("lotCode", "")).strip()
         movement_type = str(payload.get("movementType", ""))
+        buyer_name = str(payload.get("buyerName", "")).strip()
+        buyer_document = "".join(str(payload.get("buyerDocument", "")).split()).upper()
         try:
             quantity = float(payload.get("quantity", 0))
         except (TypeError, ValueError):
@@ -417,6 +438,13 @@ class Handler(BaseHTTPRequestHandler):
         if not branch_id or not product_id or not lot_code or len(lot_code) > 64 or movement_type not in {"entry", "exit"} or not 0 < quantity <= 1_000_000_000:
             self.json(HTTPStatus.BAD_REQUEST, {"error": "Datos de movimiento inválidos."})
             return
+        if movement_type == "exit":
+            if not 2 <= len(buyer_name) <= 100 or re.search(r"[\x00-\x1f\x7f]", buyer_name):
+                self.json(HTTPStatus.BAD_REQUEST, {"error": "Ingresa el nombre completo del comprador (2 a 100 caracteres)."})
+                return
+            if not re.fullmatch(r"[A-Z0-9-]{4,20}", buyer_document):
+                self.json(HTTPStatus.BAD_REQUEST, {"error": "Ingresa un CI válido (4 a 20 letras, números o guiones)."})
+                return
         request_id = str(uuid.uuid4())
         try:
             with db_connection() as db:
@@ -438,13 +466,54 @@ class Handler(BaseHTTPRequestHandler):
                     db.rollback()
                     self.json(HTTPStatus.CONFLICT, {"error": f"Stock insuficiente en ese lote. Disponible: {previous:g}."})
                     return
+                if movement_type == "exit":
+                    daily_quantity = db.execute(
+                        """SELECT COALESCE(SUM(m.quantity), 0) AS quantity
+                           FROM inventory_movements m
+                           JOIN inventory i ON i.id = m.inventory_id
+                           WHERE m.movement_type = 'exit' AND m.buyer_document = ?
+                             AND i.product_id = ? AND date(m.occurred_at, '-4 hours') = date('now', '-4 hours')""",
+                        (buyer_document, product_id),
+                    ).fetchone()["quantity"]
+                    if daily_quantity + quantity > SALE_LIMIT_PER_PRODUCT:
+                        db.rollback()
+                        remaining = max(0, SALE_LIMIT_PER_PRODUCT - daily_quantity)
+                        self.json(HTTPStatus.CONFLICT, {
+                            "error": f"Límite diario por comprador: {SALE_LIMIT_PER_PRODUCT:g} unidades por producto. Disponible para hoy: {remaining:g}."
+                        })
+                        return
+                    daily_products = db.execute(
+                        """SELECT COUNT(DISTINCT i.product_id) AS product_count
+                           FROM inventory_movements m
+                           JOIN inventory i ON i.id = m.inventory_id
+                           WHERE m.movement_type = 'exit' AND m.buyer_document = ?
+                             AND date(m.occurred_at, '-4 hours') = date('now', '-4 hours')""",
+                        (buyer_document,),
+                    ).fetchone()["product_count"]
+                    already_bought_product = db.execute(
+                        """SELECT 1 FROM inventory_movements m
+                           JOIN inventory i ON i.id = m.inventory_id
+                           WHERE m.movement_type = 'exit' AND m.buyer_document = ?
+                             AND i.product_id = ? AND date(m.occurred_at, '-4 hours') = date('now', '-4 hours')
+                           LIMIT 1""",
+                        (buyer_document, product_id),
+                    ).fetchone()
+                    if not already_bought_product and daily_products >= SALE_MAX_PRODUCTS_PER_DAY:
+                        db.rollback()
+                        self.json(HTTPStatus.CONFLICT, {
+                            "error": f"Límite diario de {SALE_MAX_PRODUCTS_PER_DAY} tipos de productos por CI alcanzado."
+                        })
+                        return
                 resulting = previous + quantity if movement_type == "entry" else previous - quantity
                 db.execute("UPDATE inventory SET quantity=?,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?", (resulting, stock["id"]))
                 db.execute(
                     """INSERT INTO inventory_movements
-                       (inventory_id,user_id,movement_type,quantity,previous_quantity,resulting_quantity,request_id)
-                       VALUES(?,?,?,?,?,?,?)""",
-                    (stock["id"], user["id"], movement_type, quantity, previous, resulting, request_id),
+                              (inventory_id,user_id,movement_type,quantity,previous_quantity,resulting_quantity,
+                                buyer_name,buyer_document,request_id)
+                              VALUES(?,?,?,?,?,?,?,?,?)""",
+                        (stock["id"], user["id"], movement_type, quantity, previous, resulting,
+                         buyer_name if movement_type == "exit" else None,
+                         buyer_document if movement_type == "exit" else None, request_id),
                 )
                 db.commit()
         except sqlite3.Error:

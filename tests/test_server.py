@@ -43,6 +43,10 @@ class InventoryApiTests(unittest.TestCase):
     def opener(self):
         return urllib.request.build_opener(urllib.request.HTTPCookieProcessor(CookieJar()))
 
+    def setUp(self):
+        server.DB_PATH = Path(TEMP_DIR.name) / f"{self._testMethodName}.sqlite3"
+        server.initialize_db()
+
     def request(self, opener, path, payload=None, origin=True):
         data = json.dumps(payload).encode() if payload is not None else None
         headers = {"Content-Type": "application/json"}
@@ -86,6 +90,63 @@ class InventoryApiTests(unittest.TestCase):
         self.assertEqual(response.status, 200)
         self.assertEqual(json.load(response), {"status": "ok"})
 
+    def test_buyer_is_limited_to_five_distinct_products_per_day(self):
+        supervisor = self.login()
+        buyer = {"buyerName": "Comprador Prueba", "buyerDocument": "98765432"}
+        products = [
+            "arroz-grano", "arroz-seleccionado", "harina-trigo-especial",
+            "harina-trigo-000", "maiz-amarillo-duro", "aceite-comestible"
+        ]
+        for index, product_id in enumerate(products):
+            movement = {
+                "branchId": "cbba-03",
+                "productId": product_id,
+                "movementType": "entry",
+                "quantity": 2,
+                "lotCode": f"LIMIT-TEST-{index}",
+            }
+            self.assertEqual(self.request(supervisor, "/api/inventory/movements", movement).status, 201)
+            exit_movement = {
+                **movement,
+                **buyer,
+                "movementType": "exit",
+                "quantity": 1,
+            }
+            if index < 5:
+                self.assertEqual(self.request(supervisor, "/api/inventory/movements", exit_movement).status, 201)
+            else:
+                with self.assertRaises(urllib.error.HTTPError) as response:
+                    self.request(supervisor, "/api/inventory/movements", exit_movement)
+                self.assertEqual(response.exception.code, 409)
+
+    def test_existing_movement_table_is_migrated_for_buyer_data(self):
+        legacy_path = Path(TEMP_DIR.name) / "legacy.sqlite3"
+        server.DB_PATH = legacy_path
+        legacy_db = sqlite3.connect(legacy_path)
+        try:
+            legacy_db.execute(
+                """CREATE TABLE inventory_movements (
+                    id INTEGER PRIMARY KEY,
+                    inventory_id INTEGER NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    movement_type TEXT NOT NULL,
+                    quantity REAL NOT NULL,
+                    previous_quantity REAL NOT NULL,
+                    resulting_quantity REAL NOT NULL,
+                    occurred_at TEXT NOT NULL,
+                    request_id TEXT NOT NULL UNIQUE
+                )"""
+            )
+        finally:
+            legacy_db.close()
+        server.initialize_db()
+        with server.db_connection() as db:
+            columns = {row["name"] for row in db.execute("PRAGMA table_info(inventory_movements)")}
+            indexes = {row["name"] for row in db.execute("PRAGMA index_list(inventory_movements)")}
+        self.assertIn("buyer_name", columns)
+        self.assertIn("buyer_document", columns)
+        self.assertIn("idx_movements_buyer_product_day", indexes)
+
     def test_entry_exit_traceability_and_role_enforcement(self):
         supervisor = self.login()
         entry = {"branchId": "cbba-01", "productId": "arroz-grano", "movementType": "entry", "quantity": 35, "lotCode": "TEST-LOT-01"}
@@ -93,20 +154,52 @@ class InventoryApiTests(unittest.TestCase):
         self.assertEqual(saved.status, 201)
         stock = json.load(self.request(supervisor, "/api/branches"))["branches"][0]["stocks"]["arroz-grano"]
         self.assertEqual(stock, 35)
-        exit_payload = {**entry, "movementType": "exit", "quantity": 5}
+        exit_payload = {
+            **entry,
+            "movementType": "exit",
+            "quantity": 5,
+            "buyerName": "Comprador de Prueba",
+            "buyerDocument": "12345678CB",
+        }
         self.assertEqual(self.request(supervisor, "/api/inventory/movements", exit_payload).status, 201)
-        too_much = {**entry, "movementType": "exit", "quantity": 100}
+        too_much = {**exit_payload, "quantity": 100}
         with self.assertRaises(urllib.error.HTTPError) as response:
             self.request(supervisor, "/api/inventory/movements", too_much)
+        self.assertEqual(response.exception.code, 409)
+        over_daily_limit = {**exit_payload, "quantity": 6}
+        with self.assertRaises(urllib.error.HTTPError) as response:
+            self.request(supervisor, "/api/inventory/movements", over_daily_limit)
         self.assertEqual(response.exception.code, 409)
         ledger = json.load(self.request(supervisor, "/api/inventory/movements"))["movements"]
         self.assertEqual(len(ledger), 2)
         self.assertEqual(ledger[0]["username"], "test-supervisor")
+        self.assertEqual(ledger[0]["buyer_name"], "Comprador de Prueba")
+        self.assertEqual(ledger[0]["buyer_document"], "12345678CB")
+        public_snapshot = json.load(self.request(self.opener(), "/api/branches"))
+        self.assertNotIn("Comprador de Prueba", json.dumps(public_snapshot, ensure_ascii=False))
+        self.assertNotIn("12345678CB", json.dumps(public_snapshot, ensure_ascii=False))
+        missing_buyer = {**exit_payload, "buyerDocument": ""}
+        with self.assertRaises(urllib.error.HTTPError) as response:
+            self.request(supervisor, "/api/inventory/movements", missing_buyer)
+        self.assertEqual(response.exception.code, 400)
         warehouse = self.login("test-warehouse", "test-warehouse-password-2026")
         warehouse_entry = {**entry, "branchId": "cbba-02", "lotCode": "WAREHOUSE-LOT-02"}
         self.assertEqual(self.request(warehouse, "/api/inventory/movements", warehouse_entry).status, 201)
+        warehouse_exit = {
+            **warehouse_entry,
+            "movementType": "exit",
+            "quantity": 1,
+            "buyerName": "Comprador Interno",
+            "buyerDocument": "87654321",
+        }
+        self.assertEqual(self.request(warehouse, "/api/inventory/movements", warehouse_exit).status, 201)
+        warehouse_ledger = json.load(self.request(warehouse, "/api/inventory/movements"))["movements"]
+        warehouse_sale = next(item for item in warehouse_ledger if item["movement_type"] == "exit")
+        self.assertEqual(warehouse_sale["buyer_document"], "87****21")
         auditor = self.login("test-auditor", "test-auditor-password-2026")
-        self.assertEqual(self.request(auditor, "/api/inventory/movements").status, 200)
+        auditor_ledger = json.load(self.request(auditor, "/api/inventory/movements"))["movements"]
+        auditor_sale = next(item for item in auditor_ledger if item["movement_type"] == "exit")
+        self.assertEqual(auditor_sale["buyer_document"], "87654321")
         with self.assertRaises(urllib.error.HTTPError) as response:
             self.request(auditor, "/api/inventory/movements", entry)
         self.assertEqual(response.exception.code, 403)

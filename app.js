@@ -264,7 +264,8 @@ function renderLedger() {
   body.replaceChildren();
   movements.forEach((movement) => {
     const row = document.createElement("tr");
-    const cells = [movement.date, `${movement.branch} · ${movement.product}`, movement.type, movement.lot, movement.role];
+    const buyer = movement.buyerName ? `${movement.buyerName} · CI ${movement.buyerDocument}` : "—";
+    const cells = [movement.date, `${movement.branch} · ${movement.product}`, movement.type, movement.lot, buyer, movement.role];
     cells.forEach((value, index) => {
       const cell = document.createElement("td");
       if (index === 2) {
@@ -281,6 +282,13 @@ function renderLedger() {
   });
 }
 
+function updateBuyerFields() {
+  const isExit = document.getElementById("movement-type").value === "salida";
+  document.getElementById("sale-buyer-fields").hidden = !isExit;
+  document.getElementById("buyer-name").required = isExit;
+  document.getElementById("buyer-document").required = isExit;
+}
+
 async function registerMovement(event) {
   event.preventDefault();
   const sessionUser = window.emapaSessionUser;
@@ -290,7 +298,13 @@ async function registerMovement(event) {
   const type = document.getElementById("movement-type").value;
   const quantity = Number(document.getElementById("movement-quantity").value);
   const lot = document.getElementById("movement-lot").value.trim();
+  const buyerName = document.getElementById("buyer-name").value.trim();
+  const buyerDocument = document.getElementById("buyer-document").value.replace(/\s+/g, "").toUpperCase();
   if (!branch || !Number.isFinite(quantity) || quantity <= 0 || !lot) return;
+  if (type === "salida" && (!buyerName || !/^[A-Z0-9-]{4,20}$/.test(buyerDocument))) {
+    window.alert("Para registrar una salida ingresa el nombre completo del comprador y un CI válido.");
+    return;
+  }
 
   if (sessionUser && window.emapaApi?.ready) {
     const submitButton = document.getElementById("register-movement");
@@ -301,9 +315,11 @@ async function registerMovement(event) {
         productId: product,
         movementType: type === "ingreso" ? "entry" : "exit",
         quantity,
-        lotCode: lot
+        lotCode: lot,
+        ...(type === "salida" ? { buyerName, buyerDocument } : {})
       });
       document.getElementById("movement-form").reset();
+      updateBuyerFields();
     } catch (error) {
       window.alert(error.message);
       if (error.status === 401) {
@@ -321,19 +337,43 @@ async function registerMovement(event) {
     window.alert(`Stock demostrativo insuficiente. Disponible: ${formatProductQuantity(branch.stocks[product], product)}.`);
     return;
   }
+  if (type === "salida") {
+    const today = new Date().toLocaleDateString("en-CA");
+    const buyerMovements = movements.filter((movement) =>
+      movement.type === "Salida" && movement.buyerDocument === buyerDocument && movement.dateKey === today
+    );
+    const boughtOfProduct = buyerMovements
+      .filter((movement) => movement.productId === product)
+      .reduce((total, movement) => total + movement.quantity, 0);
+    if (boughtOfProduct + quantity > 10) {
+      window.alert(`Límite demo: 10 unidades diarias por producto y CI. Saldo permitido hoy: ${Math.max(0, 10 - boughtOfProduct)}.`);
+      return;
+    }
+    const distinctProducts = new Set(buyerMovements.map((movement) => movement.productId));
+    if (!distinctProducts.has(product) && distinctProducts.size >= 5) {
+      window.alert("Límite demo: máximo 5 tipos de producto distintos por CI al día.");
+      return;
+    }
+  }
+  const dateKey = new Date().toLocaleDateString("en-CA");
   branch.stocks[product] += type === "ingreso" ? quantity : -quantity;
   movements.push({
     date: new Intl.DateTimeFormat("es-BO", { dateStyle: "short", timeStyle: "short" }).format(new Date()),
+    dateKey,
     branch: branch.name,
     product: PRODUCT_NAMES[product],
+    productId: product,
+    quantity,
     type: type === "ingreso" ? "Ingreso" : "Salida",
     lot,
+    buyerName: type === "salida" ? buyerName : "",
+    buyerDocument: type === "salida" ? buyerDocument : "",
     role: document.getElementById("role-select").value
   });
   renderBranches();
   renderLedger();
-  document.getElementById("movement-quantity").value = "";
-  document.getElementById("movement-lot").value = "";
+  document.getElementById("movement-form").reset();
+  updateBuyerFields();
 }
 
 function showInternalPanel(sessionUser = null) {
@@ -425,6 +465,8 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("back-public").addEventListener("click", showPublicPage);
   document.getElementById("movement-form").addEventListener("submit", registerMovement);
   document.getElementById("role-select").addEventListener("change", updateRolePermissions);
+  document.getElementById("movement-type").addEventListener("change", updateBuyerFields);
+  updateBuyerFields();
   document.getElementById("login-close").addEventListener("click", () => {
     document.getElementById("login-dialog").close();
     if (window.location.pathname === "/login") window.history.replaceState({}, "", "/");

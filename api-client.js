@@ -39,6 +39,8 @@
         product: movement.product,
         type: movement.movement_type === "entry" ? "Ingreso" : "Salida",
         lot: movement.lot_code,
+        buyerName: movement.buyer_name || "",
+        buyerDocument: movement.buyer_document || "",
         role: movement.username
       })));
     },

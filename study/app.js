@@ -1249,18 +1249,21 @@
     }
   }
 
-  function showToast(message) {
+  function showToast(message, centered) {
     toast.textContent = message;
+    toast.classList.toggle("toast-centered", Boolean(centered));
     toast.classList.add("is-visible");
     if (toastHandle) clearTimeout(toastHandle);
-    toastHandle = setTimeout(function () { toast.classList.remove("is-visible"); }, 2800);
+    toastHandle = setTimeout(function () {
+      toast.classList.remove("is-visible", "toast-centered");
+    }, 2800);
   }
 
   function requireStudentName() {
     if (String(state.displayName || "").trim()) return true;
     view = "home";
     render();
-    showToast("Escribe tu nombre antes de iniciar el estudio o un simulacro.");
+    showToast("Escribe tu nombre antes de iniciar el estudio o un simulacro.", true);
     const input = document.getElementById("student-name");
     if (input) input.focus();
     return false;

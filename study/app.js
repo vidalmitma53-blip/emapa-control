@@ -596,7 +596,7 @@
           level: 1,
           type: "single",
           selectionCount: 1,
-          prompt: "¿Cuál de las siguientes afirmaciones aparece exactamente en el PDF?",
+          prompt: "¿Cuál de estas afirmaciones expresa correctamente la idea presentada?",
           options: options.map(function (text, optionIndex) {
             return {
               text: text,

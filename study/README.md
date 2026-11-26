@@ -12,7 +12,7 @@ Prototipo web independiente del sitio de inventarios. Abre `index.html` en un na
 - Banco de 210 preguntas agrupadas en 21 niveles de 10 preguntas.
 - Preguntas de selección múltiple con selección exacta de una o dos respuestas.
 - Selección de temas para retos rápidos y simulacros mixtos de hasta 20 preguntas.
-- Diagnóstico por tema y explicación de cada opción con página de referencia.
+- Diagnóstico por tema; al responder se muestra por qué la opción elegida es correcta o incorrecta, la respuesta correcta, el fundamento de la página fuente y contexto farmacéutico general por tema.
 
 El banco está dividido por tema y nivel en `questions-foundations.js`, `questions-analysis.js` y `questions-applied.js`. `question-bank.js` proporciona el helper de construcción y `content.js` mantiene los metadatos del curso y sus temas. Revisa editorialmente las preguntas y sus referencias antes de publicar el material como contenido académico oficial.
 

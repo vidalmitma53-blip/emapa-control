@@ -369,6 +369,61 @@
         '<section class="empty-state"><span class="empty-icon">✦</span><h2>Tu lista de repaso está despejada</h2><p>Cuando falles una pregunta, la añadiremos aquí. Practica un tema para empezar.</p>' + button("Ir a los temas →", "topics", "button button-primary") + '</section>');
   }
 
+  const topicKnowledge = {
+    fundamentos: "El control de calidad usa varios atributos complementarios —identidad, potencia, pureza y seguridad—; aprobar una sola prueba no reemplaza la evaluación integral del medicamento.",
+    muestreo: "Una muestra representativa ayuda a inferir la calidad del lote. La selección debe seguir un procedimiento documentado para reducir sesgos y conservar la trazabilidad.",
+    identificacion: "La identificación responde qué sustancia está presente; por sí sola no determina cuánto hay ni demuestra que el producto cumpla todos los requisitos de calidad.",
+    pureza: "La pureza se evalúa frente a especificaciones y límites definidos para el producto. Detectar una impureza requiere considerar su identidad, cantidad y posible impacto.",
+    adulteracion: "Cambios intencionales en composición o rotulado comprometen la identidad y la seguridad; la revisión analítica debe acompañarse de documentación y trazabilidad.",
+    alteraciones: "La luz, humedad, temperatura y microorganismos pueden modificar un medicamento. Las condiciones de almacenamiento y el envase forman parte de la evaluación de estabilidad.",
+    cuantitativo: "Exactitud y precisión son conceptos distintos: una serie puede ser repetible y aun así desviarse del valor verdadero. La calibración y el método influyen en ambos.",
+    volumetria: "Una valoración depende de una reacción cuantitativa conocida y de una solución valorante estandarizada. El punto final observado debe aproximarse al punto de equivalencia.",
+    hplc: "La separación cromatográfica depende de cómo se distribuyen los componentes entre las fases móvil y estacionaria. La identificación se fortalece con patrones y condiciones validadas.",
+    espectrofotometria: "La relación entre absorbancia y concentración se usa dentro de condiciones adecuadas y un intervalo validado; blanco, calibración y longitud de onda importan.",
+    microbiologia: "Los criterios microbiológicos dependen de la forma farmacéutica y de si el producto debe ser estéril. Los límites y métodos aplicables deben verificarse en la norma correspondiente.",
+    biofarmacia: "La formulación puede influir en liberación, disolución y absorción. Compartir principio activo no basta, por sí solo, para concluir que dos productos son intercambiables.",
+    "estudios-estabilidad": "La vida útil debe sustentarse con datos obtenidos bajo condiciones y en envases definidos; no se deduce únicamente de una observación aislada.",
+    "estabilidad-fisica": "Cambios físicos pueden afectar uniformidad, facilidad de administración o liberación del principio activo, por lo que deben interpretarse según el tipo de formulación.",
+    biodisponibilidad: "En farmacología, biodisponibilidad describe la velocidad y la fracción de principio activo que alcanza la circulación sistémica; puede verse afectada por formulación y administración.",
+    residuos: "La eliminación de medicamentos debe seguir las reglas locales y los procedimientos institucionales; no debe asumirse que el desagüe o la basura común son opciones seguras."
+  };
+
+  function uniqueExplanations(options) {
+    return Array.from(new Set(options.map(function (option) { return option.explanation; }).filter(Boolean)))
+      .map(escapeHtml).join(" ");
+  }
+
+  function renderAnswerFeedback(question, answer) {
+    const completion = question.type === "completion";
+    const selected = completion ? [answer.text || ""] : (answer.optionIndexes || []).map(function (index) {
+      return question.options[index] ? question.options[index].text : "";
+    }).filter(Boolean);
+    const correctOptions = completion ? [] : question.options.filter(function (option) { return option.correct; });
+    const correctText = completion ? question.correctAnswer : correctOptions.map(function (option) { return option.text; }).join(" · ");
+    const selectedReasons = completion ? [] : (answer.optionIndexes || []).map(function (index) {
+      return question.options[index];
+    }).filter(Boolean);
+    const sourceName = question.sourceName || content.course.source;
+    const knowledge = question.knowledgeNote || topicKnowledge[question.topicId] ||
+      "Compara la respuesta con el fragmento del documento y revisa cómo se aplica el concepto al contexto de la pregunta.";
+    const heading = answer.correct ? "¡Correcta! Esta respuesta coincide con el criterio evaluado." : "Respuesta incorrecta: revisemos el razonamiento.";
+    const selectedBlock = selected.length ?
+      '<div class="feedback-detail ' + (answer.correct ? "is-positive" : "is-negative") + '"><strong>' +
+        (selected.length > 1 ? "Tus respuestas" : "Tu respuesta") + '</strong><p>' + selected.map(escapeHtml).join(" · ") + '</p>' +
+        (!answer.correct && selectedReasons.length ? '<small>' + uniqueExplanations(selectedReasons) + '</small>' :
+          !answer.correct ? '<small>La respuesta escrita no coincide con la solución esperada. Revisa la respuesta correcta y el fundamento antes de continuar.</small>' : "") +
+      '</div>' : "";
+    return '<div class="answer-feedback ' + (answer.correct ? "answer-feedback-correct" : "answer-feedback-incorrect") + '">' +
+      '<strong class="answer-feedback-title">' + heading + '</strong>' +
+      selectedBlock +
+      '<div class="feedback-detail"><strong>Respuesta correcta</strong><p>' + escapeHtml(correctText) + '</p>' +
+        (!completion && correctOptions.length ? '<small>' + uniqueExplanations(correctOptions) + '</small>' : "") +
+      '</div>' +
+      '<div class="feedback-detail"><strong>Fundamento del documento</strong><p>' + escapeHtml(question.explanation) + '</p></div>' +
+      '<div class="feedback-detail feedback-knowledge"><strong>Contexto farmacéutico general</strong><p>' + escapeHtml(knowledge) + '</p></div>' +
+      '<p class="source-note">Fuente: ' + escapeHtml(sourceName) + ', página ' + question.sourcePage + '.</p></div>';
+  }
+
   function renderSession() {
     const session = state.currentSession;
     if (!session) {
@@ -418,16 +473,11 @@
         '<div class="quiz-top"><button class="back-button" data-action="quit-session" type="button">← Salir</button><span class="quiz-mode">' + modeLabel(session.mode) + '</span>' + timer + '</div>' +
         '<div class="quiz-progress-row"><span>Pregunta ' + (session.index + 1) + ' de ' + session.questionIds.length + '</span><strong>' + Math.max(progress, 4) + '%</strong></div>' +
         '<div class="quiz-progress-track"><i style="width:' + Math.max(progress, 4) + '%"></i></div>' +
-        '<div class="question-card"><div class="question-meta"><span class="topic-chip">' + escapeHtml(question.topicTitle) + '</span><span class="difficulty-chip">Nivel ' + question.level + (multiSelect ? " · Complementación" : "") + '</span></div>' +
+        '<div class="question-card"><div class="question-meta"><span class="topic-chip">' + escapeHtml(question.topicTitle) + '</span><span class="difficulty-chip">Nivel ' + question.level + (multiSelect ? " · Selección múltiple" : "") + '</span></div>' +
         '<h1>' + escapeHtml(completion && question.textWithBlank ? question.textWithBlank : question.prompt) + '</h1><p class="select-hint">' +
           (answer ? "Respuesta y explicación:" : completion ? "Completa el espacio en blanco." : multiSelect ? "Selecciona exactamente " + requiredSelections + (requiredSelections === 1 ? " opción." : " opciones.") : "Selecciona la respuesta que consideres correcta.") + '</p>' +
         answerArea +
-        (answer ? '<div class="feedback-box ' + (answer.correct ? "feedback-correct" : "feedback-incorrect") + '"><strong>' + (answer.correct ? "¡Muy bien! Respuesta correcta." : "No exactamente. Vamos a entenderlo.") + '</strong><p>' + escapeHtml(question.explanation) + '</p></div>' +
-          (completion ? "" : '<div class="option-explanations"><strong>Explicación de cada opción</strong>' + question.options.map(function (option, index) {
-            return '<p class="' + (option.correct ? "explanation-correct" : "explanation-incorrect") + '"><strong>' + String.fromCharCode(65 + index) + '. ' +
-              (option.correct ? "Correcta" : "Incorrecta") + ':</strong> ' + escapeHtml(option.explanation) + '</p>';
-          }).join("") + '</div>') +
-          '<p class="source-note">Fuente: ' + escapeHtml(content.course.source) + ', página ' + question.sourcePage + '.</p>' : "") +
+        (answer ? renderAnswerFeedback(question, answer) : "") +
         '</div>' +
         (answer ? button(session.index === session.questionIds.length - 1 ? "Ver resultados →" : "Siguiente pregunta →", "next-question", "button button-primary quiz-next") :
           completion ? button("Confirmar respuesta →", "submit-completion", "button button-primary quiz-next") :
@@ -541,6 +591,8 @@
           id: "pdf-" + index + "-" + Date.now(),
           topicId: content.topics[0].id,
           topicTitle: "Documento: " + file.name,
+          sourceName: file.name,
+          knowledgeNote: "Una pregunta de reconocimiento literal comprueba si puedes localizar información explícita. Para evaluar comprensión, relaciona el fragmento con la idea central y el contexto de la página.",
           level: 1,
           type: "single",
           selectionCount: 1,
@@ -612,6 +664,8 @@
           id: "pdf-completion-" + index + "-" + Date.now(),
           topicId: content.topics[0].id,
           topicTitle: "Documento: " + pdfExam.name,
+          sourceName: pdfExam.name,
+          knowledgeNote: "La complementación ayuda a recuperar términos clave de memoria. Comprueba también el sentido de la oración completa: escribir una palabra aislada sin entender el concepto no garantiza comprensión.",
           level: 1,
           type: "completion",
           selectionCount: 1,

@@ -507,13 +507,20 @@ body[data-theme="dark"] .timer-pill.timer-warning { background: #442a24; color: 
 .answer-option.is-incorrect .answer-letter { border-color: #e39b8d; background: #ffe4dc; color: #874638; }
 body[data-theme="dark"] .answer-option.is-correct { border-color: #4d8258; background: #263d2c; color: #c8efce; }
 body[data-theme="dark"] .answer-option.is-incorrect { border-color: #885246; background: #3d2a26; color: #ffc1af; }
-.feedback-box { margin-top: 15px; padding: 13px 15px; border-radius: 11px; }
-.feedback-box strong { font: 700 11px "Manrope", sans-serif; }
-.feedback-box p { margin: 5px 0 0; font-size: 10px; line-height: 1.6; }
-.feedback-correct { background: #eff9f0; color: #315d3c; }
-.feedback-incorrect { background: #fff3ef; color: #814538; }
-body[data-theme="dark"] .feedback-correct { background: #263d2c; color: #c4e8ca; }
-body[data-theme="dark"] .feedback-incorrect { background: #3d2a26; color: #f3c0b3; }
+.answer-feedback { display: grid; gap: 9px; margin-top: 16px; }
+.answer-feedback-title { padding: 12px 14px; border-radius: 11px; font: 700 11px "Manrope", sans-serif; }
+.answer-feedback-correct .answer-feedback-title { background: #eff9f0; color: #315d3c; }
+.answer-feedback-incorrect .answer-feedback-title { background: #fff3ef; color: #814538; }
+body[data-theme="dark"] .answer-feedback-correct .answer-feedback-title { background: #263d2c; color: #c4e8ca; }
+body[data-theme="dark"] .answer-feedback-incorrect .answer-feedback-title { background: #3d2a26; color: #f3c0b3; }
+.feedback-detail { padding: 11px 13px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-soft); }
+.feedback-detail > strong { color: var(--ink); font-size: 10px; }
+.feedback-detail p { margin: 5px 0 0; color: var(--ink); font-size: 10px; line-height: 1.55; }
+.feedback-detail small { display: block; margin-top: 6px; color: var(--muted); font-size: 9px; line-height: 1.55; }
+.feedback-detail.is-positive { border-color: #b9d9c0; }
+.feedback-detail.is-negative { border-color: #e9c2b9; }
+.feedback-knowledge { border-color: #d7d0ed; background: #f7f5fc; }
+body[data-theme="dark"] .feedback-knowledge { border-color: #4a405e; background: #282432; }
 .other-options { margin-top: 11px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; color: var(--muted); font-size: 9px; }
 .other-options summary { cursor: pointer; font-weight: 700; }
 .other-options div { padding-top: 5px; }

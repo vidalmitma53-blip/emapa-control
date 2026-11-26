@@ -14,7 +14,7 @@
       return {
         text: text,
         correct: false,
-        explanation: "No es correcta: esa opción no coincide con la fuente. La diapositiva indica que " + correctText + "."
+        explanation: "Esta alternativa no cumple el criterio descrito en la pregunta. El material indica que " + correctText + "."
       };
     }));
     const offset = (counts[level] + level) % options.length;

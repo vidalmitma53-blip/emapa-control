@@ -324,11 +324,30 @@
       '<div class="topic-card-footer"><small>' + (state.selectedTopics.includes(topic.id) ? "Incluido en prácticas" : "No seleccionado") + '</small>' + button("Practicar tema →", "start-topic", "topic-link", ' data-topic="' + escapeHtml(topic.id) + '"') + '</div></article>';
   }
 
+  function conceptNode(node) {
+    const topic = topicById[node.id];
+    if (!topic) return "";
+    return '<article class="concept-node"><div class="concept-node-heading"><span class="topic-icon" aria-hidden="true">' + topic.icon + '</span><div><h4>' + escapeHtml(topic.title) + '</h4><small>Págs. ' + topic.sourcePages.join("–") + '</small></div></div>' +
+      '<ul>' + node.concepts.map(function (concept) { return '<li>' + escapeHtml(concept) + '</li>'; }).join("") + '</ul>' +
+      button("Practicar tema →", "start-topic", "concept-practice", ' data-topic="' + escapeHtml(topic.id) + '"') + '</article>';
+  }
+
+  function renderConceptMap() {
+    return '<section class="concept-map" aria-labelledby="concept-map-title">' +
+      '<div class="concept-map-intro"><p class="eyebrow">VISTA GENERAL DEL CURSO</p><h2 id="concept-map-title">Mapa conceptual</h2><p>Abre cada rama para conectar los temas, sus ideas principales y la ruta para estudiarlos.</p></div>' +
+      '<div class="concept-root"><span aria-hidden="true">✦</span><div><small>CONCEPTO CENTRAL</small><strong>Control de medicamentos</strong><p>Evaluar identidad, calidad, seguridad, desempeño y manejo responsable durante el ciclo del medicamento.</p></div></div>' +
+      '<div class="concept-branches">' + content.conceptGroups.map(function (group, index) {
+        return '<details class="concept-branch"' + (index === 0 ? " open" : "") + '><summary><span class="concept-branch-number">' + String(index + 1).padStart(2, "0") + '</span><span class="concept-branch-copy"><strong>' + escapeHtml(group.title) + '</strong><small>' + escapeHtml(group.summary) + '</small></span><span class="concept-branch-count">' + group.topics.length + ' temas <i aria-hidden="true">⌄</i></span></summary>' +
+          '<div class="concept-branch-content"><div class="concept-nodes">' + group.topics.map(conceptNode).join("") + '</div></div></details>';
+      }).join("") + '</div></section>';
+  }
+
   function renderTopics() {
     main.innerHTML =
       '<section class="page-heading"><p class="eyebrow">CONTENIDO DEL CURSO</p><h1>Elige tu próximo reto</h1><p>Los niveles se desbloquean en orden al alcanzar 7 de 10 respuestas correctas. También puedes combinar uno o varios temas en prácticas y simulacros.</p></section>' +
+      renderConceptMap() +
       '<section class="section-block"><div class="section-heading"><div><p class="eyebrow">PROGRESIÓN</p><h2>Tu ruta de niveles</h2></div></div>' + levelGrid() + '</section>' +
-      '<section class="section-block"><div class="section-heading"><div><p class="eyebrow">TEMAS DEL PDF</p><h2>Progreso por tema</h2></div></div>' +
+      '<section class="section-block"><div class="section-heading"><div><p class="eyebrow">TEMAS DEL CURSO</p><h2>Progreso por tema</h2></div></div>' +
       '<div class="topic-grid topic-grid-page">' + content.topics.map(topicCard).join("") + '</div></section>' +
       '<section class="selection-panel"><div><p class="eyebrow">PRÁCTICA PERSONALIZADA</p><h2>Selecciona uno o varios temas</h2><p>La selección se guarda automáticamente. El simulacro combinará hasta 20 preguntas de los temas marcados.</p></div>' +
       '<div class="topic-selector">' + topicSelectionControls() + '</div>' +

@@ -351,6 +351,63 @@ body[data-theme="dark"] .level-card.level-passed { background: #3a3525; }
 .review-dot { width: 6px; height: 6px; border-radius: 50%; background: #dd9b5b; }
 .heading-mark { color: var(--green); }
 
+.concept-map { margin: 27px 0 34px; }
+.concept-map-intro { margin-bottom: 15px; }
+.concept-map-intro .eyebrow { margin-bottom: 5px; }
+.concept-map-intro h2 { margin: 0; font-size: 19px; }
+.concept-map-intro > p:last-child { margin: 6px 0 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.concept-root {
+  position: relative;
+  display: flex;
+  width: min(590px, 100%);
+  align-items: center;
+  gap: 14px;
+  margin: 0 auto 20px;
+  padding: 17px 20px;
+  border: 1px solid #a9cdb2;
+  border-radius: 16px;
+  background: linear-gradient(120deg, var(--green-soft), var(--surface));
+  box-shadow: var(--shadow);
+}
+.concept-root::after {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 1px;
+  height: 20px;
+  background: #a9cdb2;
+  content: "";
+}
+.concept-root > span { display: grid; width: 40px; height: 40px; flex: 0 0 40px; place-items: center; border-radius: 12px; background: var(--green); color: #fff; font-size: 18px; }
+.concept-root small { display: block; color: var(--green-dark); font-size: 8px; font-weight: 800; letter-spacing: 1px; }
+.concept-root strong { display: block; margin-top: 3px; font: 800 15px "Manrope", "Segoe UI", sans-serif; }
+.concept-root p { margin: 4px 0 0; color: var(--muted); font-size: 9px; line-height: 1.5; }
+.concept-branches { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; }
+.concept-branch { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.concept-branch > summary { display: flex; min-height: 69px; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; list-style: none; }
+.concept-branch > summary::-webkit-details-marker { display: none; }
+.concept-branch > summary:hover { background: var(--surface-soft); }
+.concept-branch-number { display: grid; width: 30px; height: 30px; flex: 0 0 30px; place-items: center; border-radius: 9px; background: var(--green-soft); color: var(--green-dark); font-size: 9px; font-weight: 800; }
+.concept-branch-copy { min-width: 0; flex: 1; }
+.concept-branch-copy strong, .concept-branch-copy small { display: block; }
+.concept-branch-copy strong { color: var(--ink); font-size: 10px; }
+.concept-branch-copy small { margin-top: 4px; color: var(--muted); font-size: 8px; line-height: 1.4; }
+.concept-branch-count { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 8px; white-space: nowrap; }
+.concept-branch-count i { color: var(--green); font-size: 14px; font-style: normal; transition: transform .18s ease; }
+.concept-branch[open] .concept-branch-count i { transform: rotate(180deg); }
+.concept-branch-content { padding: 0 11px 11px; }
+.concept-nodes { display: grid; gap: 8px; }
+.concept-node { padding: 11px 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface-soft); }
+.concept-node-heading { display: flex; align-items: center; gap: 9px; }
+.concept-node-heading .topic-icon { width: 31px; height: 31px; flex: 0 0 31px; border-radius: 9px; font-size: 15px; }
+.concept-node-heading h4 { margin: 0; color: var(--ink); font-size: 10px; }
+.concept-node-heading small { display: block; margin-top: 3px; color: var(--muted); font-size: 8px; }
+.concept-node ul { display: grid; gap: 5px; margin: 10px 0 8px; padding-left: 18px; color: var(--muted); }
+.concept-node li { padding-left: 2px; font-size: 9px; line-height: 1.5; }
+.concept-node li::marker { color: var(--green); }
+.concept-practice { padding: 4px 0; border: 0; background: transparent; color: var(--green); cursor: pointer; font-size: 9px; font-weight: 800; }
+.concept-practice:hover { color: var(--green-dark); text-decoration: underline; }
+
 .pdf-upload-card {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -577,6 +634,8 @@ body[data-theme="dark"] .unlock-banner { border-color: #4c5838; background: #303
 }
 
 @media (max-width: 760px) {
+  .concept-branches { grid-template-columns: 1fr; }
+  .concept-root { padding: 14px; }
   .name-greeting { align-items: flex-start; flex-direction: column; }
   .name-greeting-input { width: 100%; }
   .name-greeting input { min-width: 0; flex: 1; width: auto; }

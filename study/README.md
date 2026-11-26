@@ -11,6 +11,7 @@ Prototipo web independiente del sitio de inventarios. Abre `index.html` en un na
 - Guardado de respuestas y del reto en curso en `localStorage`.
 - Banco de 210 preguntas agrupadas en 21 niveles de 10 preguntas.
 - Preguntas de selección múltiple con selección exacta de una o dos respuestas.
+- Mapa conceptual interactivo que organiza los 16 temas en cuatro ramas y resume sus conceptos principales.
 - Selección de temas para retos rápidos y simulacros mixtos de hasta 20 preguntas.
 - Diagnóstico por tema; al responder se muestra por qué la opción elegida es correcta o incorrecta, la respuesta correcta, el fundamento de la página fuente y contexto farmacéutico general por tema.
 

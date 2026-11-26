@@ -16,6 +16,7 @@
     dailyStudy: [],
     selectedTopics: content.topics.map(function (topic) { return topic.id; }),
     questionStats: {},
+    questionHistory: [],
     awardedQuestions: [],
     passedLevels: {},
     currentSession: null
@@ -36,10 +37,22 @@
       if (!parsed || typeof parsed !== "object") throw new Error("Formato de progreso inválido");
       return Object.assign(structuredCloneSafe(defaultState), parsed, {
         questionStats: parsed.questionStats || {},
+        questionHistory: Array.isArray(parsed.questionHistory) ? Array.from(new Set(parsed.questionHistory.filter(function (key) {
+          return typeof key === "string";
+        }))) :
+          questionBank.filter(function (question) {
+            return parsed.questionStats && parsed.questionStats[question.id] && parsed.questionStats[question.id].attempts > 0;
+          }).map(function (question) { return question.id; }),
         awardedQuestions: parsed.awardedQuestions || [],
         dailyStudy: parsed.dailyStudy || [],
         selectedTopics: Array.isArray(parsed.selectedTopics) ? parsed.selectedTopics : defaultState.selectedTopics.slice(),
-        passedLevels: parsed.passedLevels || {}
+        passedLevels: parsed.passedLevels || {},
+        currentSession: parsed.currentSession ? Object.assign({}, parsed.currentSession, {
+          requiredCorrect: Number.isInteger(parsed.currentSession.requiredCorrect) ? parsed.currentSession.requiredCorrect :
+            parsed.currentSession.mode === "level" && Array.isArray(parsed.currentSession.questionIds)
+              ? Math.ceil(parsed.currentSession.questionIds.length * 0.7)
+              : null
+        }) : null
       });
     } catch (error) {
       showStorageError("No se pudo leer el avance guardado. No se modificaron los datos anteriores.");
@@ -131,6 +144,21 @@
     return questions.find(function (question) { return question.id === id; });
   }
 
+  function questionHistoryKey(question) {
+    return question.repetitionKey || question.id;
+  }
+
+  function hasSeenQuestion(question) {
+    return state.questionHistory.includes(questionHistoryKey(question));
+  }
+
+  function markQuestionSeen(question) {
+    const key = questionHistoryKey(question);
+    if (state.questionHistory.includes(key)) return false;
+    state.questionHistory.push(key);
+    return true;
+  }
+
   function getStats(questionId) {
     return state.questionStats[questionId] || { attempts: 0, correct: 0, incorrect: 0, lastCorrect: false };
   }
@@ -138,7 +166,7 @@
   function getReviewQuestions() {
     return questions.filter(function (question) {
       const stats = getStats(question.id);
-      return stats.incorrect > 0 && !stats.lastCorrect;
+      return (stats.incorrect > 0 && !stats.lastCorrect) || (hasSeenQuestion(question) && stats.attempts === 0);
     });
   }
 
@@ -173,14 +201,14 @@
 
   function topicProgress(topic) {
     const topicQuestions = questionsByTopic[topic.id] || [];
-    const answered = topicQuestions.filter(function (question) {
-      return getStats(question.id).attempts > 0;
+    const seen = topicQuestions.filter(function (question) {
+      return hasSeenQuestion(question);
     });
-    const mastered = answered.filter(function (question) {
+    const mastered = seen.filter(function (question) {
       return getStats(question.id).lastCorrect;
     }).length;
     return {
-      attempted: answered.length,
+      attempted: seen.length,
       total: topicQuestions.length,
       percent: topicQuestions.length ? Math.round((mastered / topicQuestions.length) * 100) : 0
     };
@@ -199,12 +227,12 @@
 
   function selectedTopicQuestions() {
     const selected = new Set(state.selectedTopics);
-    return questions.filter(function (question) { return selected.has(question.topicId); });
+    return questions.filter(function (question) { return selected.has(question.topicId) && !hasSeenQuestion(question); });
   }
 
   function randomQuestionsFromSelectedTopics(limit) {
     const selected = state.selectedTopics.map(function (topicId) {
-      const topicQuestions = questionsByTopic[topicId] || [];
+      const topicQuestions = (questionsByTopic[topicId] || []).filter(function (question) { return !hasSeenQuestion(question); });
       return topicQuestions[Math.floor(Math.random() * topicQuestions.length)];
     }).filter(Boolean);
     const chosenIds = new Set(selected.map(function (question) { return question.id; }));
@@ -216,19 +244,20 @@
   function topicSelectionControls() {
     return content.topics.map(function (topic) {
       const checked = state.selectedTopics.includes(topic.id);
-      const count = (questionsByTopic[topic.id] || []).length;
+      const count = (questionsByTopic[topic.id] || []).filter(function (question) { return !hasSeenQuestion(question); }).length;
       return '<label class="topic-check"><input type="checkbox" data-topic-select="' + escapeHtml(topic.id) + '"' + (checked ? " checked" : "") + '><span>' +
-        escapeHtml(topic.title) + '</span><small>' + count + ' preguntas</small></label>';
+        escapeHtml(topic.title) + '</span><small>' + count + ' nuevas</small></label>';
     }).join("");
   }
 
   function levelGrid() {
     return '<div class="levels-grid">' + levels.map(function (level) {
       const status = levelStatus(level);
-      const disabled = status === "locked";
-      const label = status === "passed" ? "Superado" : (disabled ? "Bloqueado" : "Disponible");
+      const remaining = questions.filter(function (question) { return question.level === level && !hasSeenQuestion(question); }).length;
+      const disabled = status === "locked" || status === "passed";
+      const label = status === "passed" ? "Superado" : (status === "locked" ? "Bloqueado" : (remaining ? "Disponible" : "Repasa errores"));
       return '<button type="button" class="level-card level-' + status + '" data-action="start-level" data-level="' + level + '"' +
-        (disabled ? " disabled" : "") + '><strong>Nivel ' + level + '</strong><span>' + label + '</span><small>10 preguntas</small></button>';
+        (disabled ? " disabled" : "") + '><strong>Nivel ' + level + '</strong><span>' + label + '</span><small>' + remaining + ' preguntas nuevas</small></button>';
     }).join("") + '</div>';
   }
 
@@ -254,8 +283,8 @@
   }
 
   function renderHome() {
-    const totalAttempted = questions.filter(function (question) {
-      return getStats(question.id).attempts > 0;
+    const totalSeen = questions.filter(function (question) {
+      return hasSeenQuestion(question);
     }).length;
     const mastered = questions.filter(function (question) {
       return getStats(question.id).lastCorrect;
@@ -301,7 +330,7 @@
       '<section class="stats-grid" aria-label="Resumen de tu avance">' +
         '<article class="stat-card"><span class="stat-icon mint">◉</span><div><small>Dominio del curso</small><strong>' + overallProgress + '%</strong><div class="mini-progress"><i style="width:' + overallProgress + '%"></i></div></div></article>' +
         '<article class="stat-card"><span class="stat-icon gold">✦</span><div><small>Puntos de experiencia</small><strong>' + state.xp + ' XP</strong><span class="stat-caption">Sigue sumando con cada reto</span></div></article>' +
-        '<article class="stat-card"><span class="stat-icon lavender">▤</span><div><small>' + (level ? "Nivel disponible" : "Curso completado") + '</small><strong>' + displayLevel + ' de ' + content.course.levelCount + '</strong><span class="stat-caption">' + Object.keys(state.passedLevels).filter(function (key) { return key.indexOf("course:") === 0 && state.passedLevels[key]; }).length + ' niveles superados · ' + totalAttempted + ' preguntas vistas</span></div></article>' +
+        '<article class="stat-card"><span class="stat-icon lavender">▤</span><div><small>' + (level ? "Nivel disponible" : "Curso completado") + '</small><strong>' + displayLevel + ' de ' + content.course.levelCount + '</strong><span class="stat-caption">' + Object.keys(state.passedLevels).filter(function (key) { return key.indexOf("course:") === 0 && state.passedLevels[key]; }).length + ' niveles superados · ' + totalSeen + ' preguntas vistas</span></div></article>' +
       '</section>' +
       '<section class="section-block"><div class="section-heading"><div><p class="eyebrow">RUTA GRADUADA</p><h2>21 niveles · 10 preguntas cada uno</h2></div></div>' + levelGrid() + '</section>' +
       '<section class="section-block"><div class="section-heading"><div><p class="eyebrow">TU RUTA</p><h2>Temas del curso</h2></div>' + button("Ver todos →", "topics", "text-button") + '</div>' +
@@ -310,7 +339,7 @@
       '<section class="section-block quick-row"><div><p class="eyebrow">POCO TIEMPO, BUEN PROGRESO</p><h2>Un reto rápido de 90 segundos</h2><p>Una pequeña práctica para mantener el ritmo.</p></div>' +
         button("Empezar reto rápido <span aria-hidden=\"true\">↗</span>", "start-quick", "button button-outline") +
       '</section>' +
-      '<section class="review-strip"><span class="review-strip-icon" aria-hidden="true">↻</span><div><strong>' + (questionsToReview ? "Tus repasos te esperan" : "Repaso inteligente") + '</strong><p>' + (questionsToReview ? questionsToReview + " pregunta(s) por reforzar a partir de tus errores." : "Las preguntas que falles aparecerán aquí para reforzar lo aprendido.") + '</p></div>' +
+      '<section class="review-strip"><span class="review-strip-icon" aria-hidden="true">↻</span><div><strong>' + (questionsToReview ? "Tus repasos te esperan" : "Repaso inteligente") + '</strong><p>' + (questionsToReview ? questionsToReview + " pregunta(s) por reforzar a partir de tus errores o preguntas incompletas." : "Las preguntas que falles o dejes sin responder aparecerán aquí para reforzar lo aprendido.") + '</p></div>' +
         button(questionsToReview ? "Repasar ahora →" : "Cómo funciona", questionsToReview ? "review" : "topics", "text-button") +
       '</section>';
   }
@@ -355,7 +384,10 @@
   }
 
   function renderExam() {
-    const loaded = pdfExam && pdfExam.questions.length;
+    const remaining = pdfExam ? Math.min(200, pdfExam.fragments.filter(function (fragment) {
+      return !state.questionHistory.includes(fragment.repetitionKey);
+    }).length) : 0;
+    const loaded = remaining > 0;
     main.innerHTML =
       '<section class="page-heading"><p class="eyebrow">SIMULACRO PERSONALIZADO</p><h1>Practica con el contenido de tu documento</h1><p>El generador local prepara preguntas de aplicación y análisis a partir de las relaciones explícitas del texto. El archivo no se envía a ningún servidor.</p></section>' +
       '<section class="pdf-upload-card">' +
@@ -364,7 +396,8 @@
         '<label class="pdf-file-button" for="pdf-file">Seleccionar PDF<input id="pdf-file" type="file" accept="application/pdf,.pdf"></label>' +
       '</section>' +
       '<section class="pdf-status" id="pdf-status" role="status">' +
-        (loaded ? '<span class="pdf-status-ready">✓</span><div><strong>' + escapeHtml(pdfExam.name) + '</strong><p>' + pdfExam.questions.length + ' preguntas distintas disponibles · ' + pdfExam.pageCount + ' páginas</p></div>' :
+        (loaded ? '<span class="pdf-status-ready">✓</span><div><strong>' + escapeHtml(pdfExam.name) + '</strong><p>' + remaining + ' preguntas nuevas disponibles · ' + pdfExam.pageCount + ' páginas</p></div>' :
+          pdfExam ? '<span class="pdf-status-empty">✓</span><div><strong>' + escapeHtml(pdfExam.name) + '</strong><p>Ya respondiste todas las preguntas únicas extraíbles de este documento.</p></div>' :
           '<span class="pdf-status-empty">＋</span><div><strong>Sin documento cargado</strong><p>Selecciona un PDF para preparar el simulacro.</p></div>') +
       '</section>' +
       '<section class="pdf-options"><div><p class="eyebrow">CONFIGURACIÓN</p><h2>Cantidad y duración</h2></div>' +
@@ -382,7 +415,7 @@
     main.innerHTML =
       '<section class="page-heading"><p class="eyebrow">APRENDIZAJE ADAPTATIVO</p><h1>Repaso inteligente <span class="heading-mark">↻</span></h1><p>Vuelve sobre preguntas que te costaron y consolida los conceptos paso a paso.</p></section>' +
       (questions.length ?
-        '<section class="review-ready"><div><span class="review-big-icon" aria-hidden="true">↻</span><div><h2>' + questions.length + ' pregunta(s) para reforzar</h2><p>Se priorizan las preguntas que respondiste incorrectamente y aún no has resuelto bien.</p></div></div>' +
+        '<section class="review-ready"><div><span class="review-big-icon" aria-hidden="true">↻</span><div><h2>' + questions.length + ' pregunta(s) para reforzar</h2><p>Incluye errores pendientes y preguntas vistas que dejaste sin responder; este repaso es la única práctica que puede repetirlas.</p></div></div>' +
         '<ul class="review-question-list">' + questions.map(function (question) { return '<li><span class="review-dot"></span><span>' + escapeHtml(question.prompt) + '</span><small>' + escapeHtml(question.topicTitle) + '</small></li>'; }).join("") + '</ul>' +
         button("Iniciar repaso →", "start-review", "button button-primary") + '</section>' :
         '<section class="empty-state"><span class="empty-icon">✦</span><h2>Tu lista de repaso está despejada</h2><p>Cuando falles una pregunta, la añadiremos aquí. Practica un tema para empezar.</p>' + button("Ir a los temas →", "topics", "button button-primary") + '</section>');
@@ -407,6 +440,76 @@
     residuos: "La eliminación de medicamentos debe seguir las reglas locales y los procedimientos institucionales; no debe asumirse que el desagüe o la basura común son opciones seguras."
   };
 
+  const topicPractice = {
+    fundamentos: "la liberación de un lote, donde identidad, potencia, pureza y seguridad se evalúan en conjunto",
+    muestreo: "la selección y trazabilidad de muestras representativas del lote",
+    identificacion: "la confirmación de identidad antes de cuantificar una sustancia",
+    pureza: "la investigación de impurezas frente a límites de especificación",
+    adulteracion: "la investigación de cambios intencionales en la composición o el rotulado",
+    alteraciones: "la evaluación de excursiones de temperatura, humedad, luz o contaminación",
+    cuantitativo: "la revisión de calibración, precisión y sesgo de un método cuantitativo",
+    volumetria: "la estandarización del valorante y la interpretación del punto final",
+    hplc: "la verificación de una separación cromatográfica y su comparación con patrones",
+    espectrofotometria: "la preparación del blanco y una lectura dentro del intervalo validado",
+    microbiologia: "la selección de límites y métodos según la forma farmacéutica y su esterilidad",
+    biofarmacia: "la evaluación de liberación y disolución antes de inferir absorción",
+    "estudios-estabilidad": "la asignación de vida útil con datos, envase y condiciones definidos",
+    "estabilidad-fisica": "la evaluación de cambios en aspecto, uniformidad y facilidad de administración",
+    biodisponibilidad: "la evaluación de formulación, vía de administración y exposición sistémica",
+    residuos: "la segregación, devolución y disposición segura de medicamentos inutilizables"
+  };
+
+  function getConceptualTopicReason(question) {
+    const prompt = question.prompt.toLowerCase();
+    if (question.topicId === "fundamentos") {
+      if (/\b(oms|ops|organismos internacionales)\b/.test(prompt)) {
+        return "La OMS y la OPS aportan orientación sanitaria internacional; su identificación ayuda a distinguir recomendaciones de salud pública de los requisitos nacionales y farmacopeicos que se aplican en cada lugar.";
+      }
+      if (/(define.*medicamento|principio activo|sustancia auxiliar)/.test(prompt)) {
+        return "El principio activo aporta la acción terapéutica, mientras que las sustancias auxiliares permiten formular y administrar el producto. Distinguir ambos componentes evita confundir la composición farmacéutica con el envase o con una mezcla arbitraria.";
+      }
+      if (/(eficiencia|eficacia)/.test(prompt)) {
+        return "La eficacia describe el efecto terapéutico, mientras que la eficiencia considerada en el material se relaciona con el tiempo para alcanzarlo; son criterios distintos y no deben confundirse.";
+      }
+      if (/(antecedente|histórico|historia|dispensatorium|industrialización)/.test(prompt)) {
+        return "Los antecedentes explican por qué la producción a gran escala hizo necesario sistematizar normas y controles; el dato histórico debe interpretarse en ese desarrollo, no como una prueba analítica.";
+      }
+      if (/(ética|legal|daño|paciente)/.test(prompt)) {
+        return "El control de calidad protege a las personas y respalda la responsabilidad profesional: liberar un producto exige evidencia de que cumple los criterios de calidad aplicables.";
+      }
+    }
+    return topicKnowledge[question.topicId] || "";
+  }
+
+  function buildPharmaceuticalContext(question, correctText) {
+    if (question.topicId === "fundamentos") {
+      if (/\b(oms|ops|organismos internacionales)\b/i.test(question.prompt)) {
+        return "Las orientaciones de la OMS y la OPS ayudan a los sistemas de salud a establecer criterios y buenas prácticas. En esta pregunta, «" +
+          correctText + "» identifica esos referentes; el profesional debe contrastar sus recomendaciones con la regulación nacional y la farmacopea vigentes.";
+      }
+      if (/(define.*medicamento|principio activo|sustancia auxiliar)/i.test(question.prompt)) {
+        return "Al revisar la composición de un medicamento, el principio activo aporta el efecto terapéutico y las sustancias auxiliares permiten formular y administrar la dosis. «" +
+          correctText + "» identifica ambos componentes sin confundirlos con el envase u otros atributos del producto.";
+      }
+      if (/(eficiencia|eficacia)/i.test(question.prompt)) {
+        return "Al evaluar un tratamiento, el profesional distingue si la intervención produce el efecto terapéutico esperado y cuánto tarda en alcanzarlo. En esta pregunta, «" +
+          correctText + "» corresponde a ese criterio, que no debe confundirse con precio o presentación.";
+      }
+      if (/(antecedente|histórico|historia|dispensatorium|industrialización)/i.test(question.prompt)) {
+        return "Al revisar la evolución del control farmacéutico, los hitos históricos explican el desarrollo de normas y controles para la producción a escala. «" +
+          correctText + "» aporta ese contexto y no sustituye los requisitos de calidad actuales.";
+      }
+      if (/(ética|legal|daño|paciente)/i.test(question.prompt)) {
+        return "En la práctica profesional, las decisiones de calidad protegen al paciente y requieren evidencia y trazabilidad. «" +
+          correctText + "» ayuda a valorar esa responsabilidad junto con la normativa aplicable.";
+      }
+    }
+    const application = topicPractice[question.topicId] ||
+      "la revisión del contenido y la aplicación del procedimiento farmacéutico correspondiente";
+    return "En " + application + ", el dato «" + correctText + "» ayuda a resolver «" + question.prompt +
+      "». La decisión final debe contrastarse con la especificación y el procedimiento vigentes.";
+  }
+
   function uniqueExplanations(options) {
     return Array.from(new Set(options.map(function (option) { return option.explanation; }).filter(Boolean)))
       .map(escapeHtml).join(" ");
@@ -423,23 +526,26 @@
       return question.options[index];
     }).filter(Boolean);
     const sourceName = question.sourceName || content.course.source;
-    const knowledge = question.knowledgeNote || topicKnowledge[question.topicId] ||
-      "Compara la respuesta con el fragmento del documento y revisa cómo se aplica el concepto al contexto de la pregunta.";
-    const knowledgeHeading = question.sourceName ? "Estrategia de análisis" : "Contexto farmacéutico general";
+    const knowledge = question.knowledgeNote || buildPharmaceuticalContext(question, correctText);
+    const knowledgeHeading = "Aplicación farmacéutica para esta pregunta";
     const heading = answer.correct ? "¡Correcta! Esta respuesta coincide con el criterio evaluado." : "Respuesta incorrecta: revisemos el razonamiento.";
+    const topicReason = question.sourceName ? "" : getConceptualTopicReason(question);
+    const reasoning = question.explanation + (topicReason ? " Concepto clave: " + topicReason : "");
+    const selectedExplanation = selectedReasons.length ? uniqueExplanations(selectedReasons) : "";
+    const completionReason = !answer.correct && completion ?
+      '<small>«' + escapeHtml(answer.text || "") + '» no completa la relación conceptual solicitada; la respuesta «' +
+        escapeHtml(correctText) + '» sí la conserva.</small>' : "";
     const selectedBlock = selected.length ?
       '<div class="feedback-detail ' + (answer.correct ? "is-positive" : "is-negative") + '"><strong>' +
         (selected.length > 1 ? "Tus respuestas" : "Tu respuesta") + '</strong><p>' + selected.map(escapeHtml).join(" · ") + '</p>' +
-        (!answer.correct && selectedReasons.length ? '<small>' + uniqueExplanations(selectedReasons) + '</small>' :
-          !answer.correct ? '<small>La respuesta escrita no coincide con la solución esperada. Revisa la respuesta correcta y el fundamento antes de continuar.</small>' : "") +
+        (!answer.correct && selectedReasons.length ? '<small>' + selectedExplanation + '</small>' : completionReason) +
       '</div>' : "";
     return '<div class="answer-feedback ' + (answer.correct ? "answer-feedback-correct" : "answer-feedback-incorrect") + '">' +
       '<strong class="answer-feedback-title">' + heading + '</strong>' +
       selectedBlock +
       '<div class="feedback-detail"><strong>Respuesta correcta</strong><p>' + escapeHtml(correctText) + '</p>' +
-        (!completion && correctOptions.length ? '<small>' + uniqueExplanations(correctOptions) + '</small>' : "") +
       '</div>' +
-      '<div class="feedback-detail"><strong>Fundamento del documento</strong><p>' + escapeHtml(question.explanation) + '</p></div>' +
+      '<div class="feedback-detail"><strong>Razonamiento conceptual</strong><p>' + escapeHtml(reasoning) + '</p></div>' +
       '<div class="feedback-detail feedback-knowledge"><strong>' + knowledgeHeading + '</strong><p>' + escapeHtml(knowledge) + '</p></div>' +
       '<p class="source-note">Fuente: ' + escapeHtml(sourceName) + ', página ' + question.sourcePage + '.</p></div>';
   }
@@ -463,6 +569,7 @@
       renderHome();
       return;
     }
+    if (markQuestionSeen(question)) saveState();
     const answer = session.answers[session.index];
     const selectedOptions = session.selections && session.selections[session.index] || [];
     const multiSelect = question.type === "multiple";
@@ -488,15 +595,14 @@
           (answer ? " disabled" : "") + '><span class="answer-letter">' + String.fromCharCode(65 + index) + '</span><span class="answer-text">' + escapeHtml(option.text) + '</span>' +
           (answer ? '<span class="answer-symbol">' + (option.correct ? "✓" : (chosen ? "×" : "")) + "</span>" : chosen ? '<span class="answer-symbol">✓</span>' : "") + '</button>';
       }).join("") + '</div>';
-    const difficultyLabel = session.mode === "pdf"
-      ? question.cognitiveLevel || "Análisis"
-      : "Nivel " + question.level + (multiSelect ? " · Selección múltiple" : "");
+    const difficultyLabel = question.cognitiveLevel || (session.mode === "pdf" ? "Análisis" : "Nivel " + question.level);
+    const questionDescriptor = multiSelect ? difficultyLabel + " · Selección múltiple" : difficultyLabel;
     main.innerHTML =
       '<section class="quiz-shell">' +
         '<div class="quiz-top"><button class="back-button" data-action="quit-session" type="button">← Salir</button><span class="quiz-mode">' + modeLabel(session.mode) + '</span>' + timer + '</div>' +
         '<div class="quiz-progress-row"><span>Pregunta ' + (session.index + 1) + ' de ' + session.questionIds.length + '</span><strong>' + Math.max(progress, 4) + '%</strong></div>' +
         '<div class="quiz-progress-track"><i style="width:' + Math.max(progress, 4) + '%"></i></div>' +
-        '<div class="question-card"><div class="question-meta"><span class="topic-chip">' + escapeHtml(question.topicTitle) + '</span><span class="difficulty-chip">' + escapeHtml(difficultyLabel) + '</span></div>' +
+        '<div class="question-card"><div class="question-meta"><span class="topic-chip">' + escapeHtml(question.topicTitle) + '</span><span class="difficulty-chip">' + escapeHtml(questionDescriptor) + '</span></div>' +
         '<h1>' + escapeHtml(completion && question.textWithBlank ? question.textWithBlank : question.prompt) + '</h1><p class="select-hint">' +
           (answer ? "Respuesta y explicación:" : completion ? escapeHtml(question.prompt || "Completa el espacio en blanco.") : multiSelect ? "Selecciona exactamente " + requiredSelections + (requiredSelections === 1 ? " opción." : " opciones.") : "Selecciona la respuesta que consideres correcta.") + '</p>' +
         answerArea +
@@ -521,13 +627,16 @@
 
   function startSession(mode, questionList, level, seconds, customQuestions) {
     if (!questionList.length) {
-      showToast("No hay preguntas disponibles para esta práctica.");
+      const available = questions.some(function (question) { return !hasSeenQuestion(question); });
+      showToast(available ? "No quedan preguntas nuevas en los temas seleccionados." :
+        "El banco de preguntas nuevas se agotó. Amplía el banco para iniciar otra partida.");
       return;
     }
     const ids = questionList.map(function (question) { return question.id; });
     state.currentSession = {
       mode: mode,
       level: level || null,
+      requiredCorrect: mode === "level" ? Math.ceil(questionList.length * 0.7) : null,
       questionIds: ids,
       index: 0,
       answers: [],
@@ -548,23 +657,65 @@
       showToast("Ese nivel no está disponible.");
       return;
     }
+    if (levelStatus(level) === "passed") {
+      showToast("Ya superaste este nivel; las preguntas completadas no se repiten.");
+      return;
+    }
     if (levelStatus(level) === "locked") {
       showToast("Supera el nivel anterior para desbloquear este reto.");
       return;
     }
-    const levelQuestions = questions.filter(function (question) { return question.level === level; });
+    if (allLevelQuestionsMastered(level)) {
+      const session = { xpEarned: 0 };
+      passLevel(level, session);
+      saveState();
+      showToast("Este nivel ya está dominado. Se desbloqueó el siguiente.");
+      render();
+      return;
+    }
+    const levelQuestions = questions.filter(function (question) {
+      return question.level === level && !hasSeenQuestion(question);
+    });
+    if (!levelQuestions.length) {
+      showToast("Ya viste las preguntas nuevas de este nivel. Repasa tus errores para dominarlo sin repetir el examen.");
+      return;
+    }
     const sessionQuestions = levelQuestions.slice().sort(function () { return Math.random() - 0.5; });
     startSession("level", sessionQuestions, level, null);
   }
 
   function startQuick() {
     const questions = randomQuestionsFromSelectedTopics(3);
+    if (questions.length < 3 && questions.length) {
+      showToast("Quedan " + questions.length + " preguntas nuevas en los temas seleccionados.");
+    }
     startSession("quick", questions, null, 90);
   }
 
   function startExam() {
     const questions = randomQuestionsFromSelectedTopics(20);
+    if (questions.length < 20 && questions.length) {
+      showToast("Quedan " + questions.length + " preguntas nuevas en los temas seleccionados.");
+    }
     startSession("exam", questions, null, null);
+  }
+
+  function allLevelQuestionsMastered(level) {
+    const levelQuestions = questions.filter(function (question) { return question.level === level; });
+    return levelQuestions.length > 0 && levelQuestions.every(function (question) {
+      return getStats(question.id).lastCorrect;
+    });
+  }
+
+  function passLevel(level, session) {
+    const levelKey = "course:" + level;
+    if (!state.passedLevels[levelKey]) {
+      state.passedLevels[levelKey] = true;
+      state.xp += 30;
+      session.xpEarned = (session.xpEarned || 0) + 30;
+    }
+    session.level = level;
+    session.levelPassed = true;
   }
 
   const pdfStopWords = new Set((
@@ -582,6 +733,19 @@
       sample[swapIndex] = value;
     }
     return sample.slice(0, sampleSize);
+  }
+
+  function pdfRepetitionKey(text) {
+    const normalized = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ").trim();
+    let first = 2166136261;
+    let second = 2654435761;
+    for (let index = 0; index < normalized.length; index += 1) {
+      const code = normalized.charCodeAt(index);
+      first = Math.imul(first ^ code, 16777619);
+      second = Math.imul(second ^ (code + index), 2246822519);
+    }
+    return "pdf-" + (first >>> 0).toString(36) + (second >>> 0).toString(36);
   }
 
   function getPdfContentTerms(text) {
@@ -679,6 +843,20 @@
     return makePdfStatementSpec(candidate);
   }
 
+  function pdfPharmaceuticalContext(spec) {
+    const applicationByKind = {
+      condition: "Cuando una condición de almacenamiento, administración o análisis se cumple, el profesional debe anticipar la consecuencia indicada antes de decidir una acción.",
+      cause: "Al investigar una desviación de calidad, distinguir la causa del efecto ayuda a orientar la verificación y evita corregir el síntoma sin atender su origen.",
+      effect: "En la evaluación de un medicamento, anticipar el efecto de un factor permite priorizar controles y prevenir resultados que afecten su calidad o desempeño.",
+      inference: "En una revisión farmacéutica, una conclusión debe derivarse de los datos disponibles y conservar la trazabilidad del razonamiento.",
+      definition: "La precisión conceptual permite al profesional interpretar resultados y comunicarlos sin confundir propiedades distintas del medicamento.",
+      comparison: "Al comparar productos o procedimientos, identificar la diferencia relevante evita extrapolar especificaciones o resultados entre condiciones no equivalentes.",
+      statement: "En el control farmacéutico, una decisión debe apoyarse en el criterio expresado por el contenido y en los procedimientos aplicables."
+    };
+    return applicationByKind[spec.kind] + " Aquí se aplica a «" + spec.candidate.text + "» y se evalúa " +
+      spec.relation + ": «" + spec.answer + "».";
+  }
+
   function getPdfWordFrequencies(fragments) {
     const frequencies = Object.create(null);
     fragments.forEach(function (fragment) {
@@ -737,10 +915,10 @@
         const sentences = pageText.match(/[^.!?]{35,220}[.!?]?/g) || [pageText];
         sentences.forEach(function (sentence) {
           const clean = sentence.replace(/\s+/g, " ").trim();
-          const key = clean.toLowerCase();
+          const key = pdfRepetitionKey(clean);
           if (clean.length >= 35 && !seenCandidates.has(key)) {
             seenCandidates.add(key);
-            candidates.push({ text: clean, page: pageNumber });
+            candidates.push({ text: clean, page: pageNumber, repetitionKey: key });
           }
         });
       }
@@ -748,7 +926,10 @@
         throw new Error("El PDF no contiene suficiente texto seleccionable.");
       }
       const questionSpecs = candidates.map(makePdfQuestionSpec);
-      const generated = samplePdfItems(questionSpecs, 200).map(function (spec, index) {
+      const newQuestionSpecs = questionSpecs.filter(function (spec) {
+        return !state.questionHistory.includes(spec.candidate.repetitionKey);
+      });
+      const generated = samplePdfItems(newQuestionSpecs, 200).map(function (spec) {
         let questionSpec = spec;
         let distractorPool = questionSpecs
           .filter(function (item) { return item.kind === spec.kind && item.candidate.text !== spec.candidate.text; })
@@ -767,11 +948,12 @@
         const optionTexts = samplePdfItems([questionSpec.answer].concat(distractors), distractors.length + 1);
         const correctIndex = optionTexts.indexOf(questionSpec.answer);
         return {
-          id: "pdf-" + index + "-" + Date.now(),
+          id: candidate.repetitionKey + "-multiple-choice",
+          repetitionKey: candidate.repetitionKey,
           topicId: content.topics[0].id,
           topicTitle: "Análisis del contenido",
           sourceName: file.name,
-          knowledgeNote: "Identifica si se pregunta por una definición, condición, causa, efecto o contraste. La respuesta debe conservar la relación explícita en el contenido; no basta con reconocer palabras sueltas.",
+          knowledgeNote: pdfPharmaceuticalContext(questionSpec),
           level: 1,
           cognitiveLevel: questionSpec.cognitiveLevel,
           type: "single",
@@ -782,17 +964,18 @@
               text: text,
               correct: optionIndex === correctIndex,
               explanation: optionIndex === correctIndex
-                ? "Esta respuesta conserva " + questionSpec.relation + " descrita en la página " + candidate.page + "."
-                : "Esta opción no responde a la relación evaluada según el contenido."
+                ? "Es correcta porque conserva " + questionSpec.relation + " descrita en la página " + candidate.page + "."
+                : "«" + text + "» no conserva " + questionSpec.relation + "; el contenido establece «" + questionSpec.answer + "»."
             };
           }),
-          explanation: "En la página " + candidate.page + ", el contenido indica: «" + candidate.text + "». La respuesta correcta identifica " + questionSpec.relation + " sin alterar el sentido.",
+          explanation: "La respuesta es correcta porque conserva " + questionSpec.relation + " del enunciado: «" + candidate.text + "». Cambiar esa relación alteraría la conclusión que se desprende del contenido.",
           sourcePage: candidate.page
         };
       });
       pdfExam = { name: file.name, pageCount: pdf.numPages, questions: generated, fragments: candidates };
       renderExam();
-      showToast("PDF procesado: " + generated.length + " preguntas disponibles.");
+      showToast(generated.length ? "PDF procesado: " + generated.length + " preguntas nuevas disponibles." :
+        "El documento no contiene preguntas nuevas que no hayas respondido antes.");
     } catch (error) {
       pdfExam = null;
       if (status) status.innerHTML = '<span class="pdf-status-error">!</span><div><strong>No se pudo procesar el PDF</strong><p>' + escapeHtml(error.message || "El documento puede estar protegido o contener solo imágenes.") + '</p></div>';
@@ -801,7 +984,7 @@
   }
 
   function startPdfExam() {
-    if (!pdfExam || !pdfExam.questions.length) {
+    if (!pdfExam) {
       showToast("Primero carga un PDF válido.");
       return;
     }
@@ -826,20 +1009,26 @@
       if (typeSelect) typeSelect.focus();
       return;
     }
-    let customQuestions = pdfExam.questions.slice(0, Math.min(count, pdfExam.questions.length));
+    let customQuestions = samplePdfItems(pdfExam.questions.filter(function (question) {
+      return !hasSeenQuestion(question);
+    }), count);
     if (format === "completion") {
-      const uniqueFragments = samplePdfItems(pdfExam.fragments, count);
+      const freshFragments = pdfExam.fragments.filter(function (fragment) {
+        return !state.questionHistory.includes(fragment.repetitionKey);
+      });
+      const uniqueFragments = samplePdfItems(freshFragments, count);
       const frequencies = getPdfWordFrequencies(pdfExam.fragments);
-      customQuestions = uniqueFragments.map(function (fragment, index) {
+      customQuestions = uniqueFragments.map(function (fragment) {
         const chosen = choosePdfCompletionWord(fragment.text, frequencies);
         if (!chosen) return null;
         const prompt = fragment.text.slice(0, chosen.start) + "__________" + fragment.text.slice(chosen.end);
         return {
-          id: "pdf-completion-" + index + "-" + Date.now(),
+          id: fragment.repetitionKey + "-completion",
+          repetitionKey: fragment.repetitionKey,
           topicId: content.topics[0].id,
           topicTitle: "Análisis del contenido",
           sourceName: pdfExam.name,
-          knowledgeNote: "Completa el término conceptual clave y verifica que encaje con el sentido y la relación descritos en toda la afirmación.",
+          knowledgeNote: "En «" + fragment.text + "», el término «" + chosen.word + "» conserva la relación conceptual descrita. En la práctica farmacéutica, identificarlo con precisión evita interpretar de forma equivocada un criterio o procedimiento.",
           level: 1,
           cognitiveLevel: "Recuperación conceptual",
           type: "completion",
@@ -848,13 +1037,18 @@
           textWithBlank: prompt,
           correctAnswer: chosen.word,
           options: [],
-          explanation: "El término clave completa la afirmación localizada en la página " + fragment.page + " y conserva su sentido.",
+          explanation: "«" + chosen.word + "» completa la afirmación localizada en la página " + fragment.page + " porque mantiene la relación conceptual expresada en «" + fragment.text + "».",
           sourcePage: fragment.page
         };
       }).filter(Boolean);
     }
     if (!customQuestions.length) {
-      showToast("No se pudieron crear preguntas con el texto del documento. Prueba elección múltiple.");
+      const remainingFragments = pdfExam.fragments.filter(function (fragment) {
+        return !state.questionHistory.includes(fragment.repetitionKey);
+      }).length;
+      showToast(remainingFragments && format === "multiple-choice"
+        ? "Carga de nuevo el documento para preparar más preguntas nuevas."
+        : "No quedan preguntas nuevas en ese formato para este documento.");
       return;
     }
     if (customQuestions.length < count) {
@@ -971,14 +1165,13 @@
     session.completedAt = Date.now();
     const correct = session.answers.filter(function (answer) { return answer && answer.correct; }).length;
     session.score = session.answers.length ? Math.round((correct / session.questionIds.length) * 100) : 0;
-    if (session.mode === "level" && session.score >= 70) {
-      const levelKey = "course:" + session.level;
-      if (!state.passedLevels[levelKey]) {
-        state.passedLevels[levelKey] = true;
-        state.xp += 30;
-        session.xpEarned = (session.xpEarned || 0) + 30;
-      }
-      session.levelPassed = true;
+    const correctInSession = session.answers.filter(function (answer) { return answer && answer.correct; }).length;
+    if (session.mode === "level" && correctInSession >= session.requiredCorrect &&
+        allLevelQuestionsMastered(session.level)) {
+      passLevel(session.level, session);
+    } else if (session.mode === "review") {
+      const currentLevel = nextLevel();
+      if (currentLevel && allLevelQuestionsMastered(currentLevel)) passLevel(currentLevel, session);
     }
     if (timerHandle) {
       clearInterval(timerHandle);
@@ -1017,7 +1210,7 @@
       '<div class="score-card"><div class="score-ring" style="--score:' + session.score + '%"><div><strong>' + session.score + '%</strong><small>acierto</small></div></div><div class="score-details"><div><span class="result-check">✓</span><span><strong>' + correct + '</strong><small>correctas</small></span></div><div><span class="result-cross">×</span><span><strong>' + wrong + '</strong><small>por repasar</small></span></div><div><span class="result-xp">✦</span><span><strong>+' + (session.xpEarned || 0) + ' XP</strong><small>experiencia ganada</small></span></div></div></div>' +
       (unanswered ? '<p class="diagnostic-caption">' + unanswered + ' pregunta(s) quedaron sin responder.</p>' : "") +
       (session.levelPassed ? '<div class="unlock-banner"><span aria-hidden="true">🔓</span><div><strong>¡Nivel superado!</strong><p>' + (session.level < content.course.levelCount ? "El nivel " + (session.level + 1) + " ya está disponible." : "Has completado todos los niveles del curso.") + '</p></div></div>' :
-        session.mode === "level" ? '<div class="unlock-banner"><span aria-hidden="true">↻</span><div><strong>Necesitas 7 de 10 aciertos</strong><p>Vuelve a intentarlo; el nivel seguirá disponible.</p></div></div>' : "") +
+        session.mode === "level" ? '<div class="unlock-banner"><span aria-hidden="true">↻</span><div><strong>Necesitas ' + session.requiredCorrect + ' de ' + session.questionIds.length + ' aciertos y dominar los conceptos del nivel</strong><p>Las preguntas ya vistas no se repiten. Repasa los errores para desbloquear el siguiente nivel.</p></div></div>' : "") +
       '<section class="diagnostic-card"><div class="section-heading"><div><p class="eyebrow">DIAGNÓSTICO POR TEMA</p><h2>Tu resultado</h2></div></div>' + diagnosticRows + '<p class="diagnostic-caption">El diagnóstico se calcula con tus respuestas de esta práctica.</p></section>' +
       '<div class="results-actions">' + button("Volver al inicio", "home", "button button-outline") + (getReviewQuestions().length ? button("Repasar errores →", "review", "button button-primary") : button("Seguir practicando →", "start-level", "button button-primary")) + '</div>' +
       '<p class="source-note">Banco de preguntas basado en ' + escapeHtml(content.course.source) + '.</p></section>';
@@ -1168,7 +1361,9 @@
 
   document.addEventListener("change", function (event) {
     if (event.target && event.target.id === "pdf-file") {
-      loadPdf(event.target.files && event.target.files[0]);
+      const file = event.target.files && event.target.files[0];
+      event.target.value = "";
+      loadPdf(file);
       return;
     }
     const topicInput = event.target.closest("[data-topic-select]");

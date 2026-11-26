@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f7f3">
+  <meta name="description" content="Plataforma de estudio gamificada para Control de medicamentos.">
+  <title>Estudia | Control de medicamentos</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
+  <script src="content.js" defer></script>
+  <script src="question-bank.js" defer></script>
+  <script src="questions-foundations.js" defer></script>
+  <script src="questions-analysis.js" defer></script>
+  <script src="questions-applied.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#" data-action="home" aria-label="Estudia, ir al inicio">
+        <span class="brand-icon" aria-hidden="true">E</span>
+        <span><strong>estudia</strong><small>APRENDE A TU RITMO</small></span>
+      </a>
+
+      <div class="course-switcher">
+        <span class="course-cover" aria-hidden="true">CM</span>
+        <span class="course-label"><small>CURSO ACTIVO</small><strong>Control de medicamentos</strong></span>
+        <span class="switcher-chevron" aria-hidden="true">⌄</span>
+      </div>
+
+      <nav class="primary-nav" aria-label="Navegación principal">
+        <button class="nav-item is-active" data-action="home"><span class="nav-icon" aria-hidden="true">⌂</span>Inicio</button>
+        <button class="nav-item" data-action="topics"><span class="nav-icon" aria-hidden="true">▦</span>Temas</button>
+        <button class="nav-item" data-action="review"><span class="nav-icon" aria-hidden="true">↻</span>Repaso inteligente<span class="nav-count" id="review-count">0</span></button>
+        <button class="nav-item" data-action="exam"><span class="nav-icon" aria-hidden="true">◷</span>Simulacro</button>
+      </nav>
+
+      <div class="sidebar-spacer"></div>
+      <div class="sidebar-note">
+        <span class="note-spark" aria-hidden="true">✦</span>
+        <strong>Un paso a la vez</strong>
+        <p>La constancia de hoy es el conocimiento de mañana.</p>
+      </div>
+      <div class="profile-mini">
+        <span class="avatar" aria-hidden="true">E</span>
+        <span><strong>Estudiante</strong><small>Perfil de demostración</small></span>
+        <span class="profile-dots" aria-hidden="true">···</span>
+      </div>
+    </aside>
+
+    <div class="main-column">
+      <header class="topbar">
+        <button class="mobile-menu" id="mobile-menu" aria-label="Abrir navegación" aria-expanded="false">☰</button>
+        <div class="breadcrumb"><span>Mis cursos</span><span aria-hidden="true">/</span><strong>Control de medicamentos</strong></div>
+        <div class="topbar-actions">
+          <div class="streak-pill" title="Días consecutivos de estudio"><span aria-hidden="true">♨</span><strong id="streak-value">0</strong><small>días</small></div>
+          <div class="xp-pill"><span aria-hidden="true">✦</span><strong id="xp-value">0 XP</strong></div>
+          <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Cambiar a modo oscuro" title="Cambiar tema"><span aria-hidden="true">☾</span></button>
+        </div>
+      </header>
+
+      <div class="local-notice" id="local-notice" role="status">
+        <span aria-hidden="true">ⓘ</span>
+        <span><strong>Prototipo local:</strong> el avance se guarda en este navegador. Las cuentas y la sincronización entre dispositivos aún no están conectadas.</span>
+      </div>
+
+      <main id="app-content" tabindex="-1" aria-live="polite"></main>
+
+      <footer class="app-footer">
+        <span>Banco de 210 preguntas basado en <strong>Control de medicamentos</strong>.</span>
+        <span>Las explicaciones indican la página de referencia de cada pregunta.</span>
+      </footer>
+    </div>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <noscript>Activa JavaScript para usar esta plataforma de estudio.</noscript>
+</body>
+</html>

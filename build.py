@@ -23,6 +23,9 @@ def main() -> None:
     OUTPUT.mkdir(parents=True)
     for filename in PUBLIC_FILES:
         shutil.copy2(ROOT / filename, OUTPUT / filename)
+    study_source = ROOT / "study"
+    if study_source.is_dir():
+        shutil.copytree(study_source, OUTPUT / "study")
     (OUTPUT / "emapa-config.js").write_text(
         "// Generado por build.py; la URL del API es pública.\n"
         f"window.EMAPA_API_BASE_URL = {json.dumps(api_base_url)};\n",
@@ -30,7 +33,8 @@ def main() -> None:
     )
     (OUTPUT / "_redirects").write_text(
         "/login /index.html 200\n"
-        "/admin-inventarios /index.html 200\n",
+        "/admin-inventarios /index.html 200\n"
+        "/estudia /study/index.html 200\n",
         encoding="utf-8",
     )
     print(f"Frontend listo en {OUTPUT}")

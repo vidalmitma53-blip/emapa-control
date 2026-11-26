@@ -303,9 +303,9 @@
       "Cada reto te acerca a dominar el tema. ¿Continuamos?";
     const nameCard = !name ?
       '<form class="name-greeting" id="name-greeting" autocomplete="off">' +
-        '<div><label for="student-name">¿Cómo te llamas?</label><p>Personaliza tu espacio de estudio.</p></div>' +
+        '<div><label for="student-name">¿Cómo te llamas?</label><p>Escribe tu nombre para iniciar el estudio y los simulacros.</p></div>' +
         '<div class="name-greeting-input"><input id="student-name" name="studentName" type="text" maxlength="40" placeholder="Escribe tu nombre" required>' +
-        '<button type="submit" class="button button-primary">Empezar <span aria-hidden="true">→</span></button></div>' +
+        '<button type="submit" class="button button-primary">Guardar y empezar <span aria-hidden="true">→</span></button></div>' +
       '</form>' :
       '<div class="personal-motivator ' + (isErlinda ? "motivator-romantic" : "") + '">' +
         '<span class="motivator-icon" aria-hidden="true">' + (isErlinda ? "♥" : "✦") + '</span>' +
@@ -1256,10 +1256,22 @@
     toastHandle = setTimeout(function () { toast.classList.remove("is-visible"); }, 2800);
   }
 
+  function requireStudentName() {
+    if (String(state.displayName || "").trim()) return true;
+    view = "home";
+    render();
+    showToast("Escribe tu nombre antes de iniciar el estudio o un simulacro.");
+    const input = document.getElementById("student-name");
+    if (input) input.focus();
+    return false;
+  }
+
   document.addEventListener("click", function (event) {
     const actionElement = event.target.closest("[data-action]");
     if (!actionElement) return;
     const action = actionElement.dataset.action;
+    if (["start-level", "start-topic", "start-quick", "start-exam", "start-pdf-exam", "start-review", "resume"].indexOf(action) !== -1 &&
+        !requireStudentName()) return;
     if (action === "home") {
       view = "home";
       if (state.currentSession && state.currentSession.completed) state.currentSession = null;
@@ -1396,7 +1408,7 @@
   });
 
   state.selectedTopics = state.selectedTopics.filter(function (topicId) { return Boolean(topicById[topicId]); });
-  view = state.currentSession && !state.currentSession.completed ? "session" : "home";
+  view = String(state.displayName || "").trim() && state.currentSession && !state.currentSession.completed ? "session" : "home";
   render();
   startTimer();
 })();

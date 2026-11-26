@@ -10,6 +10,7 @@ Prototipo web independiente del sitio de inventarios. Abre `index.html` en un na
 - Simulacro desde documento con dos formatos (elección múltiple o examen complementario), hasta 200 preguntas distintas y duración ajustable entre 1 y 120 minutos. El generador local plantea preguntas de comprensión conceptual, aplicación de condiciones y análisis de relaciones causales explícitas; en complementación, prioriza términos clave. La profundidad depende de la estructura del texto y no se envía el documento a una IA externa.
 - Tema claro/oscuro y diseño adaptable a móvil.
 - Guardado de respuestas y del reto en curso en `localStorage`.
+- Es obligatorio guardar un nombre antes de iniciar niveles, prácticas, repasos o simulacros; el nombre y el avance se guardan solo en el navegador actual.
 - Banco de 210 preguntas agrupadas en 21 niveles de 10 preguntas, con énfasis progresivo: fundamentos, relaciones, aplicación, análisis e integración, y criterio profesional. Los niveles avanzados incluyen casos de laboratorio, formulación, estabilidad y gestión de residuos.
 - Preguntas de selección múltiple con selección exacta de una o dos respuestas.
 - Mapa conceptual interactivo que organiza los 16 temas en cuatro ramas y resume sus conceptos principales.

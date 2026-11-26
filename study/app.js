@@ -368,9 +368,9 @@
           '<span class="pdf-status-empty">＋</span><div><strong>Sin documento cargado</strong><p>Selecciona un PDF para preparar el simulacro.</p></div>') +
       '</section>' +
       '<section class="pdf-options"><div><p class="eyebrow">CONFIGURACIÓN</p><h2>Cantidad y duración</h2></div>' +
-        '<label>Tipo de examen<select id="pdf-question-type"' + (loaded ? "" : " disabled") + '><option value="completion">Complementación</option><option value="multiple-choice">Selección múltiple</option></select></label>' +
+        '<label>Tipo de examen<select id="pdf-question-type"' + (loaded ? "" : " disabled") + '><option value="multiple-choice">Elección múltiple</option><option value="completion">Complementación</option></select></label>' +
         '<label>Cantidad de preguntas<select id="pdf-question-count"' + (loaded ? "" : " disabled") + '><option value="10">10 preguntas</option><option value="20">20 preguntas</option><option value="30">30 preguntas</option><option value="100" selected>100 preguntas</option></select></label>' +
-        '<label>Tiempo límite<select id="pdf-time-limit"' + (loaded ? "" : " disabled") + '><option value="20">20 minutos</option><option value="40">40 minutos</option><option value="60">60 minutos</option></select></label>' +
+        '<label>Duración del examen (minutos)<input id="pdf-time-limit" type="number" min="1" max="120" step="1" value="60"' + (loaded ? "" : " disabled") + '><small>Elige de 1 a 120 minutos (máximo 2 horas).</small></label>' +
       '</section>' +
       '<div class="pdf-actions">' + button("Usar simulacro del curso", "start-exam", "button button-outline") +
       '<button type="button" class="button button-primary" data-action="start-pdf-exam"' + (loaded ? "" : " disabled") + '>Crear simulacro del PDF <span aria-hidden="true">→</span></button></div>' +
@@ -648,8 +648,18 @@
     const timeSelect = document.getElementById("pdf-time-limit");
     const typeSelect = document.getElementById("pdf-question-type");
     const count = countSelect ? Number(countSelect.value) : 10;
-    const minutes = timeSelect ? Number(timeSelect.value) : 20;
+    const minutes = timeSelect ? Number(timeSelect.value) : 60;
     const format = typeSelect ? typeSelect.value : "completion";
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 120) {
+      showToast("La duración debe estar entre 1 y 120 minutos.");
+      if (timeSelect) timeSelect.focus();
+      return;
+    }
+    if (!["completion", "multiple-choice"].includes(format)) {
+      showToast("Selecciona un tipo de examen válido.");
+      if (typeSelect) typeSelect.focus();
+      return;
+    }
     let customQuestions = pdfExam.questions.slice(0, Math.min(count, pdfExam.questions.length));
     if (format === "completion") {
       const uniqueFragments = pdfExam.fragments.slice().sort(function () { return Math.random() - 0.5; });

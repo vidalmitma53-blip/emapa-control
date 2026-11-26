@@ -486,7 +486,7 @@ body[data-theme="dark"] .level-card.level-passed { background: #3a3525; }
 }
 .pdf-options h2 { margin: 0; font-size: 15px; }
 .pdf-options label { display: grid; gap: 7px; color: var(--muted); font-size: 9px; font-weight: 700; }
-.pdf-options select {
+.pdf-options select, .pdf-options input[type="number"] {
   width: 100%;
   min-height: 40px;
   padding: 0 10px;
@@ -496,6 +496,7 @@ body[data-theme="dark"] .level-card.level-passed { background: #3a3525; }
   color: var(--ink);
   font: inherit;
 }
+.pdf-options label > small { color: var(--muted); font-size: 8px; font-weight: 400; line-height: 1.4; }
 .pdf-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
 .pdf-actions .button:disabled { cursor: not-allowed; opacity: .55; }
 .pdf-disclaimer { margin: 12px 0 0; color: var(--muted); font-size: 9px; line-height: 1.55; }

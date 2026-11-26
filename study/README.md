@@ -7,7 +7,7 @@ Prototipo web independiente del sitio de inventarios. Abre `index.html` en un na
 - Panel de avance, XP, racha diaria y niveles.
 - Práctica con retroalimentación inmediata para todas las opciones.
 - Reto rápido con temporizador, simulacro y repaso de preguntas falladas.
-- Simulacro desde documento con dos formatos (elección múltiple o examen complementario), entre 10 y 200 preguntas distintas según el texto disponible y duración ajustable entre 1 y 120 minutos.
+- Simulacro desde documento con dos formatos (elección múltiple o examen complementario), hasta 200 preguntas distintas y duración ajustable entre 1 y 120 minutos. El generador local plantea preguntas de comprensión conceptual, aplicación de condiciones y análisis de relaciones causales explícitas; en complementación, prioriza términos clave. La profundidad depende de la estructura del texto y no se envía el documento a una IA externa.
 - Tema claro/oscuro y diseño adaptable a móvil.
 - Guardado de respuestas y del reto en curso en `localStorage`.
 - Banco de 210 preguntas agrupadas en 21 niveles de 10 preguntas.

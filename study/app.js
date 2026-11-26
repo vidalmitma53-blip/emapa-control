@@ -357,7 +357,7 @@
   function renderExam() {
     const loaded = pdfExam && pdfExam.questions.length;
     main.innerHTML =
-      '<section class="page-heading"><p class="eyebrow">SIMULACRO PERSONALIZADO</p><h1>Practica con tu propio PDF</h1><p>Carga un documento para extraer sus textos y crear preguntas de reconocimiento localmente. El archivo no se sube a ningún servidor.</p></section>' +
+      '<section class="page-heading"><p class="eyebrow">SIMULACRO PERSONALIZADO</p><h1>Practica con el contenido de tu documento</h1><p>El generador local prepara preguntas de aplicación y análisis a partir de las relaciones explícitas del texto. El archivo no se envía a ningún servidor.</p></section>' +
       '<section class="pdf-upload-card">' +
         '<div class="pdf-upload-icon" aria-hidden="true">PDF</div>' +
         '<div class="pdf-upload-copy"><h2>Sube tu documento</h2><p>Formatos PDF con texto seleccionable. Máximo recomendado: 20 MB.</p></div>' +
@@ -374,7 +374,7 @@
       '</section>' +
       '<div class="pdf-actions">' + button("Usar simulacro del curso", "start-exam", "button button-outline") +
       '<button type="button" class="button button-primary" data-action="start-pdf-exam"' + (loaded ? "" : " disabled") + '>Crear simulacro del PDF <span aria-hidden="true">→</span></button></div>' +
-      '<p class="pdf-disclaimer"><strong>Nota:</strong> se generan hasta 200 preguntas distintas a partir del texto del documento; la cantidad efectiva depende de cuántos fragmentos válidos contenga. Revisa el contenido antes de usarlo como evaluación académica oficial.</p>';
+      '<p class="pdf-disclaimer"><strong>Nota:</strong> el generador local formula preguntas sobre definiciones, condiciones y relaciones de causa y efecto cuando están explícitas en el texto. En otros casos, plantea preguntas de análisis basadas en el contenido. Se crean hasta 200 preguntas distintas; revisa su pertinencia antes de usarlas como evaluación académica oficial.</p>';
   }
 
   function renderReview() {
@@ -425,6 +425,7 @@
     const sourceName = question.sourceName || content.course.source;
     const knowledge = question.knowledgeNote || topicKnowledge[question.topicId] ||
       "Compara la respuesta con el fragmento del documento y revisa cómo se aplica el concepto al contexto de la pregunta.";
+    const knowledgeHeading = question.sourceName ? "Estrategia de análisis" : "Contexto farmacéutico general";
     const heading = answer.correct ? "¡Correcta! Esta respuesta coincide con el criterio evaluado." : "Respuesta incorrecta: revisemos el razonamiento.";
     const selectedBlock = selected.length ?
       '<div class="feedback-detail ' + (answer.correct ? "is-positive" : "is-negative") + '"><strong>' +
@@ -439,7 +440,7 @@
         (!completion && correctOptions.length ? '<small>' + uniqueExplanations(correctOptions) + '</small>' : "") +
       '</div>' +
       '<div class="feedback-detail"><strong>Fundamento del documento</strong><p>' + escapeHtml(question.explanation) + '</p></div>' +
-      '<div class="feedback-detail feedback-knowledge"><strong>Contexto farmacéutico general</strong><p>' + escapeHtml(knowledge) + '</p></div>' +
+      '<div class="feedback-detail feedback-knowledge"><strong>' + knowledgeHeading + '</strong><p>' + escapeHtml(knowledge) + '</p></div>' +
       '<p class="source-note">Fuente: ' + escapeHtml(sourceName) + ', página ' + question.sourcePage + '.</p></div>';
   }
 
@@ -487,14 +488,17 @@
           (answer ? " disabled" : "") + '><span class="answer-letter">' + String.fromCharCode(65 + index) + '</span><span class="answer-text">' + escapeHtml(option.text) + '</span>' +
           (answer ? '<span class="answer-symbol">' + (option.correct ? "✓" : (chosen ? "×" : "")) + "</span>" : chosen ? '<span class="answer-symbol">✓</span>' : "") + '</button>';
       }).join("") + '</div>';
+    const difficultyLabel = session.mode === "pdf"
+      ? question.cognitiveLevel || "Análisis"
+      : "Nivel " + question.level + (multiSelect ? " · Selección múltiple" : "");
     main.innerHTML =
       '<section class="quiz-shell">' +
         '<div class="quiz-top"><button class="back-button" data-action="quit-session" type="button">← Salir</button><span class="quiz-mode">' + modeLabel(session.mode) + '</span>' + timer + '</div>' +
         '<div class="quiz-progress-row"><span>Pregunta ' + (session.index + 1) + ' de ' + session.questionIds.length + '</span><strong>' + Math.max(progress, 4) + '%</strong></div>' +
         '<div class="quiz-progress-track"><i style="width:' + Math.max(progress, 4) + '%"></i></div>' +
-        '<div class="question-card"><div class="question-meta"><span class="topic-chip">' + escapeHtml(question.topicTitle) + '</span><span class="difficulty-chip">Nivel ' + question.level + (multiSelect ? " · Selección múltiple" : "") + '</span></div>' +
+        '<div class="question-card"><div class="question-meta"><span class="topic-chip">' + escapeHtml(question.topicTitle) + '</span><span class="difficulty-chip">' + escapeHtml(difficultyLabel) + '</span></div>' +
         '<h1>' + escapeHtml(completion && question.textWithBlank ? question.textWithBlank : question.prompt) + '</h1><p class="select-hint">' +
-          (answer ? "Respuesta y explicación:" : completion ? "Completa el espacio en blanco." : multiSelect ? "Selecciona exactamente " + requiredSelections + (requiredSelections === 1 ? " opción." : " opciones.") : "Selecciona la respuesta que consideres correcta.") + '</p>' +
+          (answer ? "Respuesta y explicación:" : completion ? escapeHtml(question.prompt || "Completa el espacio en blanco.") : multiSelect ? "Selecciona exactamente " + requiredSelections + (requiredSelections === 1 ? " opción." : " opciones.") : "Selecciona la respuesta que consideres correcta.") + '</p>' +
         answerArea +
         (answer ? renderAnswerFeedback(question, answer) : "") +
         '</div>' +
@@ -563,6 +567,147 @@
     startSession("exam", questions, null, null);
   }
 
+  const pdfStopWords = new Set((
+    "a al algo ante aun bajo cada como con contra cual cuales de del desde donde durante e el ella ellas ellos en entre era es esa esas ese eso esos esta estaba estas este esto estos fue ha hacia hasta hay la las le les lo los mas más menos mi mis mucha muchas muy no nos o para pero por porque que quien se sin sobre son su sus también te tiene todo tu un una unas uno y ya " +
+    "acelera aceleran aumenta aumentan cambia cambian conduce debe deben disminuye disminuyen facilita facilitan genera generan incrementa incrementan inicia inician ocasiona ocasionan permite permiten puede pueden produce producen promueve reducen reduce requiere requieren trata"
+  ).split(/\s+/));
+
+  function samplePdfItems(items, count) {
+    const sample = items.slice();
+    const sampleSize = Math.min(count, sample.length);
+    for (let index = 0; index < sampleSize; index += 1) {
+      const swapIndex = index + Math.floor(Math.random() * (sample.length - index));
+      const value = sample[index];
+      sample[index] = sample[swapIndex];
+      sample[swapIndex] = value;
+    }
+    return sample.slice(0, sampleSize);
+  }
+
+  function getPdfContentTerms(text) {
+    const words = text.match(/[A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9]+/g) || [];
+    return words.filter(function (word) {
+      const normalized = word.toLowerCase();
+      return normalized.length >= 4 && !pdfStopWords.has(normalized);
+    });
+  }
+
+  function makePdfStatementSpec(candidate) {
+    const focus = getPdfContentTerms(candidate.text).slice(0, 2).join(" ");
+    return {
+      candidate: candidate,
+      kind: "statement",
+      prompt: focus
+        ? "Al tomar una decisión sobre «" + focus + "», ¿qué criterio está respaldado directamente por el contenido?"
+        : "Al analizar el tema, ¿qué criterio está respaldado directamente por el contenido?",
+      answer: candidate.text,
+      relation: "el criterio central",
+      cognitiveLevel: "Análisis"
+    };
+  }
+
+  function makePdfQuestionSpec(candidate) {
+    const text = candidate.text.replace(/[.!?]+$/, "");
+    let match = text.match(/^(?:si|cuando|en caso de que)\s+(.{8,120}?)[,;:]\s*(.{10,180})$/i);
+    if (match) {
+      return {
+        candidate: candidate,
+        kind: "condition",
+        prompt: "Caso de aplicación: ante la condición «" + match[1].trim() + "», ¿qué resultado o conducta corresponde según el contenido?",
+        answer: match[2].trim(),
+        relation: "la consecuencia de la condición",
+        cognitiveLevel: "Aplicación"
+      };
+    }
+    match = text.match(/^(.{12,150}?)\s+(?:porque|ya que|puesto que|debido a que|a causa de que)\s+(.{12,150})$/i);
+    if (match) {
+      return {
+        candidate: candidate,
+        kind: "cause",
+        prompt: "El material describe este resultado: «" + match[1].trim() + "». ¿Qué factor causal lo explica?",
+        answer: match[2].trim(),
+        relation: "la relación causal",
+        cognitiveLevel: "Análisis"
+      };
+    }
+    match = text.match(/^(.{10,140}?)\s+(?:provoca|produce|genera|ocasiona|causa|conduce a)\s+(.{10,150})$/i);
+    if (match) {
+      return {
+        candidate: candidate,
+        kind: "effect",
+        prompt: "Si se presenta «" + match[1].trim() + "», ¿qué efecto se deriva de la relación descrita?",
+        answer: match[2].trim(),
+        relation: "la consecuencia",
+        cognitiveLevel: "Aplicación"
+      };
+    }
+    match = text.match(/^(.{12,150}?)\s*,?\s*(?:por lo tanto|por consiguiente|en consecuencia|por ende)\s+(.{10,150})$/i);
+    if (match) {
+      return {
+        candidate: candidate,
+        kind: "inference",
+        prompt: "Dado el antecedente «" + match[1].trim() + "», ¿qué conclusión se desprende según el contenido?",
+        answer: match[2].trim(),
+        relation: "la conclusión derivada",
+        cognitiveLevel: "Análisis"
+      };
+    }
+    match = text.match(/^(.{3,90}?)\s+(?:se define como|se entiende por|se denomina|se refiere a|consiste en|corresponde a)\s+(.{10,180})$/i);
+    if (!match) match = text.match(/^(.{3,90}?)\s+es\s+(?:un|una|el|la)\s+(.{10,180})$/i);
+    if (match) {
+      const concept = match[1].trim().replace(/^(?:el|la|los|las|un|una)\s+/i, "");
+      return {
+        candidate: candidate,
+        kind: "definition",
+        prompt: "¿Qué descripción define el concepto «" + concept + "» según el contenido?",
+        answer: match[2].trim(),
+        relation: "la definición del concepto",
+        cognitiveLevel: "Comprensión conceptual"
+      };
+    }
+    match = text.match(/^(.{10,120}?)\s+(?:a diferencia de|en contraste con|mientras que)\s+(.{10,150})$/i);
+    if (match) {
+      return {
+        candidate: candidate,
+        kind: "comparison",
+        prompt: "Al comparar los elementos descritos, ¿qué diferencia establece el contenido?",
+        answer: text,
+        relation: "el contraste entre los elementos",
+        cognitiveLevel: "Análisis"
+      };
+    }
+    return makePdfStatementSpec(candidate);
+  }
+
+  function getPdfWordFrequencies(fragments) {
+    const frequencies = Object.create(null);
+    fragments.forEach(function (fragment) {
+      getPdfContentTerms(fragment.text).forEach(function (word) {
+        const normalized = word.toLowerCase();
+        frequencies[normalized] = (frequencies[normalized] || 0) + 1;
+      });
+    });
+    return frequencies;
+  }
+
+  function choosePdfCompletionWord(text, frequencies) {
+    const pattern = /[A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9]+/g;
+    const tokens = [];
+    let match;
+    while ((match = pattern.exec(text))) {
+      tokens.push({ word: match[0], start: match.index, end: match.index + match[0].length });
+    }
+    const eligible = tokens.filter(function (token) {
+      return token.word.length >= 4 && !pdfStopWords.has(token.word.toLowerCase());
+    });
+    if (!eligible.length) return null;
+    eligible.sort(function (left, right) {
+      const frequencyDifference = (frequencies[right.word.toLowerCase()] || 0) - (frequencies[left.word.toLowerCase()] || 0);
+      return frequencyDifference || right.word.length - left.word.length;
+    });
+    return eligible[0];
+  }
+
   async function loadPdf(file) {
     if (!file) return;
     if (file.type && file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
@@ -602,36 +747,46 @@
       if (candidates.length < 4) {
         throw new Error("El PDF no contiene suficiente texto seleccionable.");
       }
-      const shuffled = candidates.slice().sort(function () { return Math.random() - 0.5; });
-      const generated = shuffled.slice(0, Math.min(200, shuffled.length)).map(function (candidate, index) {
-        const distractors = [];
-        const distractorStart = Math.floor(Math.random() * candidates.length);
-        for (let offset = 0; offset < candidates.length && distractors.length < 3; offset += 1) {
-          const item = candidates[(distractorStart + offset) % candidates.length];
-          if (item.text !== candidate.text) distractors.push(item.text.slice(0, 220));
+      const questionSpecs = candidates.map(makePdfQuestionSpec);
+      const generated = samplePdfItems(questionSpecs, 200).map(function (spec, index) {
+        let questionSpec = spec;
+        let distractorPool = questionSpecs
+          .filter(function (item) { return item.kind === spec.kind && item.candidate.text !== spec.candidate.text; })
+          .map(function (item) { return item.answer; });
+        distractorPool = Array.from(new Set(distractorPool.filter(function (answer) { return answer !== spec.answer; })));
+        if (distractorPool.length < 2) {
+          questionSpec = makePdfStatementSpec(spec.candidate);
+          distractorPool = questionSpecs
+            .filter(function (item) {
+              return item.candidate.text !== spec.candidate.text && item.candidate.text !== questionSpec.answer;
+            })
+            .map(function (item) { return item.candidate.text; });
         }
-        const options = [candidate.text].concat(distractors).sort(function () { return Math.random() - 0.5; });
-        const correctIndex = options.indexOf(candidate.text);
+        const candidate = questionSpec.candidate;
+        const distractors = samplePdfItems(distractorPool, Math.min(3, distractorPool.length));
+        const optionTexts = samplePdfItems([questionSpec.answer].concat(distractors), distractors.length + 1);
+        const correctIndex = optionTexts.indexOf(questionSpec.answer);
         return {
           id: "pdf-" + index + "-" + Date.now(),
           topicId: content.topics[0].id,
-          topicTitle: "Documento: " + file.name,
+          topicTitle: "Análisis del contenido",
           sourceName: file.name,
-          knowledgeNote: "Una pregunta de reconocimiento literal comprueba si puedes localizar información explícita. Para evaluar comprensión, relaciona el fragmento con la idea central y el contexto de la página.",
+          knowledgeNote: "Identifica si se pregunta por una definición, condición, causa, efecto o contraste. La respuesta debe conservar la relación explícita en el contenido; no basta con reconocer palabras sueltas.",
           level: 1,
+          cognitiveLevel: questionSpec.cognitiveLevel,
           type: "single",
           selectionCount: 1,
-          prompt: "¿Cuál de estas afirmaciones expresa correctamente la idea presentada?",
-          options: options.map(function (text, optionIndex) {
+          prompt: questionSpec.prompt,
+          options: optionTexts.map(function (text, optionIndex) {
             return {
               text: text,
               correct: optionIndex === correctIndex,
               explanation: optionIndex === correctIndex
-                ? "Este fragmento corresponde al texto de la página " + candidate.page + "."
-                : "Este fragmento no corresponde al texto correcto de esta pregunta."
+                ? "Esta respuesta conserva " + questionSpec.relation + " descrita en la página " + candidate.page + "."
+                : "Esta opción no responde a la relación evaluada según el contenido."
             };
           }),
-          explanation: "La opción correcta reproduce un fragmento localizado en la página " + candidate.page + " del documento.",
+          explanation: "En la página " + candidate.page + ", el contenido indica: «" + candidate.text + "». La respuesta correcta identifica " + questionSpec.relation + " sin alterar el sentido.",
           sourcePage: candidate.page
         };
       });
@@ -673,46 +828,27 @@
     }
     let customQuestions = pdfExam.questions.slice(0, Math.min(count, pdfExam.questions.length));
     if (format === "completion") {
-      const uniqueFragments = pdfExam.fragments.slice().sort(function () { return Math.random() - 0.5; })
-        .slice(0, Math.min(count, pdfExam.fragments.length));
+      const uniqueFragments = samplePdfItems(pdfExam.fragments, count);
+      const frequencies = getPdfWordFrequencies(pdfExam.fragments);
       customQuestions = uniqueFragments.map(function (fragment, index) {
-        const words = fragment.text.match(/[A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9]+(?:[.,;:][A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9]+)?/g) || [];
-        const eligible = words.map(function (word, wordIndex) { return { word: word.replace(/[.,;:]$/, ""), wordIndex: wordIndex }; })
-          .filter(function (item) { return item.word.length >= 4; });
-        if (!eligible.length) return null;
-        const chosen = eligible[Math.floor(eligible.length / 2)];
-        const answerWords = fragment.text.split(/\s+/);
-        let blankIndex = chosen.wordIndex;
-        let prompt = "";
-        if (answerWords.length >= 2) {
-          const approximate = Math.round(answerWords.length / 2);
-          blankIndex = approximate;
-          const blankWord = answerWords[approximate].replace(/^[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9]+|[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9]+$/g, "");
-          if (blankWord.length >= 4) {
-            const prefix = answerWords.slice(0, approximate).join(" ");
-            const suffix = answerWords.slice(approximate + 1).join(" ");
-            prompt = (prefix ? prefix + " " : "") + "__________" + (suffix ? " " + suffix : "");
-            chosen.word = blankWord;
-          } else {
-            prompt = fragment.text;
-          }
-        } else {
-          prompt = fragment.text;
-        }
+        const chosen = choosePdfCompletionWord(fragment.text, frequencies);
+        if (!chosen) return null;
+        const prompt = fragment.text.slice(0, chosen.start) + "__________" + fragment.text.slice(chosen.end);
         return {
           id: "pdf-completion-" + index + "-" + Date.now(),
           topicId: content.topics[0].id,
-          topicTitle: "Documento: " + pdfExam.name,
+          topicTitle: "Análisis del contenido",
           sourceName: pdfExam.name,
-          knowledgeNote: "La complementación ayuda a recuperar términos clave de memoria. Comprueba también el sentido de la oración completa: escribir una palabra aislada sin entender el concepto no garantiza comprensión.",
+          knowledgeNote: "Completa el término conceptual clave y verifica que encaje con el sentido y la relación descritos en toda la afirmación.",
           level: 1,
+          cognitiveLevel: "Recuperación conceptual",
           type: "completion",
           selectionCount: 1,
-          prompt: "Completa el fragmento:",
+          prompt: "Completa el término conceptual clave:",
           textWithBlank: prompt,
           correctAnswer: chosen.word,
           options: [],
-          explanation: "La palabra o frase completa el texto localizado en la página " + fragment.page + ".",
+          explanation: "El término clave completa la afirmación localizada en la página " + fragment.page + " y conserva su sentido.",
           sourcePage: fragment.page
         };
       }).filter(Boolean);

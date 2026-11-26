@@ -298,7 +298,7 @@
     const isErlinda = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === "erlinda";
     const welcomeName = name ? escapeHtml(name) : "estudiante";
     const personalMessage = isErlinda ?
-      "Erlinda, mi corazón, cada página que estudias hoy te acerca a esa meta que tanto mereces. Tú puedes con todo, y yo creo en ti. ✨" :
+      "Erlinda, mi corazón, cada página que estudias hoy hace florecer tus sueños. Sigue adelante: tienes la fuerza y la inteligencia para alcanzar todo lo que deseas. 🌸🌷" :
       name ? "Hola, " + escapeHtml(name) + ". Tu esfuerzo de hoy será tu triunfo de mañana." :
       "Cada reto te acerca a dominar el tema. ¿Continuamos?";
     const nameCard = !name ?
@@ -309,13 +309,13 @@
       '</form>' :
       '<div class="personal-motivator ' + (isErlinda ? "motivator-romantic" : "") + '">' +
         '<span class="motivator-icon" aria-hidden="true">' + (isErlinda ? "♥" : "✦") + '</span>' +
-        '<div><small>MENSAJE PARA TI</small><p>' + personalMessage + '</p></div>' +
+        '<div><small>MENSAJE PARA TI</small>' + (isErlinda ? '<span class="motivator-flowers" aria-hidden="true">🌸 🌷 🌼</span>' : "") + '<p>' + personalMessage + '</p></div>' +
         '<button type="button" class="text-button" data-action="edit-name">Cambiar nombre</button>' +
       '</div>';
     main.innerHTML =
       '<section class="welcome-row">' +
         '<div><p class="eyebrow">MI ESPACIO DE APRENDIZAJE</p><h1>¡Hola, ' + welcomeName + '! <span class="wave">✦</span></h1>' +
-        '<p class="welcome-copy">' + escapeHtml(personalMessage) + '</p></div>' +
+        '<p class="welcome-copy ' + (isErlinda ? "welcome-copy-romantic" : "") + '">' + escapeHtml(personalMessage) + '</p></div>' +
         '<div class="daily-card"><span class="daily-icon" aria-hidden="true">☀</span><span><strong>' + currentStreak() + (currentStreak() === 1 ? ' día' : ' días') + '</strong><small>de racha actual</small></span></div>' +
       '</section>' +
       nameCard +
@@ -1350,9 +1350,10 @@
       if (copy) {
         const normalized = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
         copy.textContent = normalized === "erlinda" ?
-          "Erlinda, mi corazón, cada página que estudias hoy te acerca a esa meta que tanto mereces. Tú puedes con todo, y yo creo en ti. ✨" :
+          "Erlinda, mi corazón, cada página que estudias hoy hace florecer tus sueños. Sigue adelante: tienes la fuerza y la inteligencia para alcanzar todo lo que deseas. 🌸🌷" :
           name ? "Hola, " + name + ". Tu esfuerzo de hoy será tu triunfo de mañana." :
           "Cada reto te acerca a dominar el tema. ¿Continuamos?";
+        copy.classList.toggle("welcome-copy-romantic", normalized === "erlinda");
       }
     }
   });

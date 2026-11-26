@@ -7,7 +7,7 @@ Prototipo web independiente del sitio de inventarios. Abre `index.html` en un na
 - Panel de avance, XP, racha diaria y niveles.
 - Práctica con retroalimentación inmediata para todas las opciones.
 - Reto rápido con temporizador, simulacro y repaso de preguntas falladas.
-- Simulacro desde documento con elección múltiple o complementación y duración ajustable entre 1 y 120 minutos.
+- Simulacro desde documento con dos formatos (elección múltiple o examen complementario), entre 10 y 200 preguntas distintas según el texto disponible y duración ajustable entre 1 y 120 minutos.
 - Tema claro/oscuro y diseño adaptable a móvil.
 - Guardado de respuestas y del reto en curso en `localStorage`.
 - Banco de 210 preguntas agrupadas en 21 niveles de 10 preguntas.

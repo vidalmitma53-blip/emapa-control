@@ -364,17 +364,17 @@
         '<label class="pdf-file-button" for="pdf-file">Seleccionar PDF<input id="pdf-file" type="file" accept="application/pdf,.pdf"></label>' +
       '</section>' +
       '<section class="pdf-status" id="pdf-status" role="status">' +
-        (loaded ? '<span class="pdf-status-ready">✓</span><div><strong>' + escapeHtml(pdfExam.name) + '</strong><p>' + pdfExam.questions.length + ' fragmentos disponibles · ' + pdfExam.pageCount + ' páginas</p></div>' :
+        (loaded ? '<span class="pdf-status-ready">✓</span><div><strong>' + escapeHtml(pdfExam.name) + '</strong><p>' + pdfExam.questions.length + ' preguntas distintas disponibles · ' + pdfExam.pageCount + ' páginas</p></div>' :
           '<span class="pdf-status-empty">＋</span><div><strong>Sin documento cargado</strong><p>Selecciona un PDF para preparar el simulacro.</p></div>') +
       '</section>' +
       '<section class="pdf-options"><div><p class="eyebrow">CONFIGURACIÓN</p><h2>Cantidad y duración</h2></div>' +
-        '<label>Tipo de examen<select id="pdf-question-type"' + (loaded ? "" : " disabled") + '><option value="multiple-choice">Elección múltiple</option><option value="completion">Complementación</option></select></label>' +
-        '<label>Cantidad de preguntas<select id="pdf-question-count"' + (loaded ? "" : " disabled") + '><option value="10">10 preguntas</option><option value="20">20 preguntas</option><option value="30">30 preguntas</option><option value="100" selected>100 preguntas</option></select></label>' +
+        '<label>Tipo de examen<select id="pdf-question-type"' + (loaded ? "" : " disabled") + '><option value="multiple-choice">Elección múltiple</option><option value="completion">Examen complementario</option></select></label>' +
+        '<label>Cantidad de preguntas<select id="pdf-question-count"' + (loaded ? "" : " disabled") + '><option value="10">10 preguntas</option><option value="20">20 preguntas</option><option value="30">30 preguntas</option><option value="50">50 preguntas</option><option value="100" selected>100 preguntas</option><option value="150">150 preguntas</option><option value="200">200 preguntas</option></select></label>' +
         '<label>Duración del examen (minutos)<input id="pdf-time-limit" type="number" min="1" max="120" step="1" value="60"' + (loaded ? "" : " disabled") + '><small>Elige de 1 a 120 minutos (máximo 2 horas).</small></label>' +
       '</section>' +
       '<div class="pdf-actions">' + button("Usar simulacro del curso", "start-exam", "button button-outline") +
       '<button type="button" class="button button-primary" data-action="start-pdf-exam"' + (loaded ? "" : " disabled") + '>Crear simulacro del PDF <span aria-hidden="true">→</span></button></div>' +
-      '<p class="pdf-disclaimer"><strong>Nota:</strong> el prototipo genera preguntas de reconocimiento a partir de fragmentos del PDF. Revisa el contenido antes de usarlo como evaluación académica oficial.</p>';
+      '<p class="pdf-disclaimer"><strong>Nota:</strong> se generan hasta 200 preguntas distintas a partir del texto del documento; la cantidad efectiva depende de cuántos fragmentos válidos contenga. Revisa el contenido antes de usarlo como evaluación académica oficial.</p>';
   }
 
   function renderReview() {
@@ -584,6 +584,7 @@
       const data = await file.arrayBuffer();
       const pdf = await window.pdfjsLib.getDocument({ data: data }).promise;
       const candidates = [];
+      const seenCandidates = new Set();
       for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
         const page = await pdf.getPage(pageNumber);
         const textContent = await page.getTextContent();
@@ -591,19 +592,24 @@
         const sentences = pageText.match(/[^.!?]{35,220}[.!?]?/g) || [pageText];
         sentences.forEach(function (sentence) {
           const clean = sentence.replace(/\s+/g, " ").trim();
-          if (clean.length >= 35) candidates.push({ text: clean, page: pageNumber });
+          const key = clean.toLowerCase();
+          if (clean.length >= 35 && !seenCandidates.has(key)) {
+            seenCandidates.add(key);
+            candidates.push({ text: clean, page: pageNumber });
+          }
         });
       }
       if (candidates.length < 4) {
         throw new Error("El PDF no contiene suficiente texto seleccionable.");
       }
       const shuffled = candidates.slice().sort(function () { return Math.random() - 0.5; });
-      const generated = shuffled.slice(0, Math.min(30, shuffled.length)).map(function (candidate, index) {
-        const distractors = candidates
-          .filter(function (item) { return item.text !== candidate.text; })
-          .sort(function () { return Math.random() - 0.5; })
-          .slice(0, 3)
-          .map(function (item) { return item.text.slice(0, 220); });
+      const generated = shuffled.slice(0, Math.min(200, shuffled.length)).map(function (candidate, index) {
+        const distractors = [];
+        const distractorStart = Math.floor(Math.random() * candidates.length);
+        for (let offset = 0; offset < candidates.length && distractors.length < 3; offset += 1) {
+          const item = candidates[(distractorStart + offset) % candidates.length];
+          if (item.text !== candidate.text) distractors.push(item.text.slice(0, 220));
+        }
         const options = [candidate.text].concat(distractors).sort(function () { return Math.random() - 0.5; });
         const correctIndex = options.indexOf(candidate.text);
         return {
@@ -647,9 +653,14 @@
     const countSelect = document.getElementById("pdf-question-count");
     const timeSelect = document.getElementById("pdf-time-limit");
     const typeSelect = document.getElementById("pdf-question-type");
-    const count = countSelect ? Number(countSelect.value) : 10;
+    const count = countSelect ? Number(countSelect.value) : 100;
     const minutes = timeSelect ? Number(timeSelect.value) : 60;
-    const format = typeSelect ? typeSelect.value : "completion";
+    const format = typeSelect ? typeSelect.value : "multiple-choice";
+    if (!Number.isInteger(count) || count < 1 || count > 200) {
+      showToast("La cantidad de preguntas debe estar entre 1 y 200.");
+      if (countSelect) countSelect.focus();
+      return;
+    }
     if (!Number.isInteger(minutes) || minutes < 1 || minutes > 120) {
       showToast("La duración debe estar entre 1 y 120 minutos.");
       if (timeSelect) timeSelect.focus();
@@ -662,10 +673,9 @@
     }
     let customQuestions = pdfExam.questions.slice(0, Math.min(count, pdfExam.questions.length));
     if (format === "completion") {
-      const uniqueFragments = pdfExam.fragments.slice().sort(function () { return Math.random() - 0.5; });
-      const fragments = [];
-      while (fragments.length < count) fragments.push(uniqueFragments[fragments.length % uniqueFragments.length]);
-      customQuestions = fragments.map(function (fragment, index) {
+      const uniqueFragments = pdfExam.fragments.slice().sort(function () { return Math.random() - 0.5; })
+        .slice(0, Math.min(count, pdfExam.fragments.length));
+      customQuestions = uniqueFragments.map(function (fragment, index) {
         const words = fragment.text.match(/[A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9]+(?:[.,;:][A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9]+)?/g) || [];
         const eligible = words.map(function (word, wordIndex) { return { word: word.replace(/[.,;:]$/, ""), wordIndex: wordIndex }; })
           .filter(function (item) { return item.word.length >= 4; });
@@ -706,6 +716,13 @@
           sourcePage: fragment.page
         };
       }).filter(Boolean);
+    }
+    if (!customQuestions.length) {
+      showToast("No se pudieron crear preguntas con el texto del documento. Prueba elección múltiple.");
+      return;
+    }
+    if (customQuestions.length < count) {
+      showToast("El documento permite " + customQuestions.length + " preguntas distintas; se usará esa cantidad.");
     }
     const sessionQuestions = customQuestions.slice();
     startSession("pdf", sessionQuestions, null, minutes * 60, customQuestions);
